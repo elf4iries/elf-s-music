@@ -239,4 +239,4 @@ helpLabel:setPosition(2, 22)
 helpLabel:setForeground(colors.gray)
 
 -- Inicia a interface
-basalt.autoUpdate()
+basalt.run()
