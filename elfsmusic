@@ -1,13 +1,11 @@
 --[[
     YouTube Music Player (Basalt UI)
     Autor: elf4iries
-    Instalação automática: Basalt corrigida
-    Tema: fada mágica com interface azul
+    Versão: Com player de música integrado
 ]]
 
 -- Função para verificar se o Basalt está instalado corretamente
 local function isBasaltInstalled()
-    -- Verifica de várias formas se o Basalt está disponível
     if fs.exists("/basalt") then
         return true
     end
@@ -18,7 +16,6 @@ local function isBasaltInstalled()
         return true
     end
     
-    -- Tenta carregar o Basalt para ver se funciona
     local success, _ = pcall(require, "basalt")
     return success
 end
@@ -29,17 +26,14 @@ if not isBasaltInstalled() then
     print(" Instalando Basalt...")
     print("================================")
     
-    -- Método 1: Tentar instalar do Pyroxenium
-    print("Tentando método 1: Pyroxenium/Basalt2...")
+    print("Tentando metodo 1: Pyroxenium/Basalt2...")
     local success1 = shell.run("wget", "run", "https://raw.githubusercontent.com/Pyroxenium/Basalt2/main/install.lua")
     
     if not success1 or not isBasaltInstalled() then
-        -- Método 2: Tentar instalar do madefor.cc (oficial)
         print("Metodo 1 falhou. Tentando metodo 2: madefor.cc...")
         local success2 = shell.run("wget", "run", "https://basalt.madefor.cc/install.lua")
         
         if not success2 or not isBasaltInstalled() then
-            -- Método 3: Download manual do basalt.lua
             print("Metodo 2 falhou. Tentando metodo 3: Download direto...")
             local response = http.get("https://raw.githubusercontent.com/Pyroxenium/Basalt2/main/basalt.lua")
             if response then
@@ -50,28 +44,15 @@ if not isBasaltInstalled() then
                 file.close()
                 print("Download direto concluido!")
             else
-                print("================================")
-                print("         ERRO NA INSTALACAO       ")
-                print("================================")
-                print(" Nao foi possivel instalar o")
-                print(" Basalt automaticamente.")
-                print("")
-                print(" Tente instalar manualmente:")
-                print("")
-                print(" wget run https://basalt.madefor.cc/install.lua")
-                print("")
-                print(" Ou:")
-                print(" wget run https://raw.githubusercontent.com/")
-                print("        Pyroxenium/Basalt2/main/install.lua")
-                print("================================")
+                print("ERRO NA INSTALACAO")
+                print("Tente instalar manualmente:")
+                print("wget run https://basalt.madefor.cc/install.lua")
                 return
             end
         end
     end
     
-    print("")
-    print(" Basalt instalado com sucesso! ")
-    print("")
+    print("Basalt instalado com sucesso!")
 end
 
 -- Carregar Basalt com segurança
@@ -82,7 +63,6 @@ end)
 
 if not success then
     print("Erro ao carregar Basalt: " .. tostring(err))
-    print("Tente reiniciar o computador ou reinstalar o Basalt.")
     return
 end
 
@@ -90,107 +70,201 @@ end
 local main = basalt.createFrame()
 main:setBackground(colors.black)
 
--- Banner decorativo com fadinha ASCII
+-- Banner simplificado
 local banner = {
-    "          _",
-    "      .-'-.-'-.", 
-    "        e l f 4 i r i e s",
-    "      '-.-'-.-'-",
-    "          -"
+    "   ELF4IRIES",
+    "  YOUTUBE MUSIC"
 }
 
 for i, line in ipairs(banner) do
     local label = main:addLabel()
     label:setText(line)
-    label:setPosition(6, i)
+    label:setPosition(2, i)
     label:setForeground(colors.lightBlue)
 end
 
--- Título
-local title = main:addLabel()
-title:setText("YOUTUBE MUSIC PLAYER")
-title:setPosition(9, 8)
-title:setForeground(colors.white)
+-- Campo para URL do YouTube
+local urlLabel = main:addLabel()
+urlLabel:setText("URL do YouTube:")
+urlLabel:setPosition(2, 4)
+urlLabel:setForeground(colors.cyan)
 
--- Label do input
-local inputLabel = main:addLabel()
-inputLabel:setText("Digite:")
-inputLabel:setPosition(3, 11)
-inputLabel:setForeground(colors.cyan)
+local urlInput = main:addInput()
+urlInput:setPosition(2, 5)
+urlInput:setSize(40, 1)
+urlInput:setBackground(colors.blue)
+urlInput:setForeground(colors.white)
+urlInput:setInputType("text")
 
--- Campo de texto
-local input = main:addInput()
-input:setPosition(3, 12)
-input:setSize(40, 3)
-input:setBackground(colors.blue)
-input:setForeground(colors.white)
+-- Botão para tocar URL
+local playBtn = main:addButton()
+playBtn:setText("TOCAR")
+playBtn:setPosition(2, 7)
+playBtn:setSize(8, 3)
+playBtn:setBackground(colors.green)
+playBtn:setForeground(colors.black)
 
--- Botão de busca
-local btn = main:addButton()
-btn:setText("BUSCAR")
-btn:setPosition(3, 16)
-btn:setSize(12, 3)
-btn:setBackground(colors.lightBlue)
-btn:setForeground(colors.black)
+-- Botão para parar
+local stopBtn = main:addButton()
+stopBtn:setText("PARAR")
+stopBtn:setPosition(12, 7)
+stopBtn:setSize(8, 3)
+stopBtn:setBackground(colors.red)
+stopBtn:setForeground(colors.black)
 
--- Status
+-- Status do player
 local status = main:addLabel()
-status:setText("")
-status:setPosition(3, 20)
+status:setText("Pronto para tocar")
+status:setPosition(2, 11)
 status:setForeground(colors.lime)
 
--- Lista de resultados
-local results = main:addList()
-results:setPosition(3, 22)
-results:setSize(40, 8)
-results:setBackground(colors.blue)
-results:setForeground(colors.white)
-results:setVisible(false)
+-- Controles de volume
+local volLabel = main:addLabel()
+volLabel:setText("Volume:")
+volLabel:setPosition(2, 13)
+volLabel:setForeground(colors.cyan)
 
--- Função do botão
-btn:onClick(function()
-    local query = input:getValue()
-    if not query or query == "" then
-        status:setText("Digite algo!")
-        return
+local volUpBtn = main:addButton()
+volUpBtn:setText("+")
+volUpBtn:setPosition(10, 13)
+volUpBtn:setSize(4, 2)
+volUpBtn:setBackground(colors.lightBlue)
+
+local volDownBtn = main:addButton()
+volDownBtn:setText("-")
+volDownBtn:setPosition(15, 13)
+volDownBtn:setSize(4, 2)
+volDownBtn:setBackground(colors.lightBlue)
+
+-- Lista de músicas salvas (opcional)
+local savedLabel = main:addLabel()
+savedLabel:setText("URLs salvas:")
+savedLabel:setPosition(2, 16)
+savedLabel:setForeground(colors.cyan)
+
+local savedList = main:addList()
+savedList:setPosition(2, 17)
+savedList:setSize(40, 6)
+savedList:setBackground(colors.blue)
+savedList:setForeground(colors.white)
+
+-- Adicionar algumas URLs de exemplo
+savedList:addItem("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+savedList:addItem("https://youtu.be/dQw4w9WgXcQ")
+
+-- Variáveis do player
+local currentProcess = nil
+local volume = 100
+
+-- Função para tocar música
+local function playMusic(url)
+    if currentProcess then
+        -- Se já está tocando algo, para primeiro
+        os.queueEvent("terminate")
+        currentProcess = nil
+        sleep(0.5)
     end
     
-    status:setText("Buscando...")
-    results:setVisible(false)
+    status:setText("Iniciando player...")
     
-    local url = "https://music.madefor.cc/search?q=" .. textutils.urlEncode(query)
-    local response = http.get(url, nil, true)
-    
-    if not response then
-        status:setText("Erro ao conectar!")
-        return
+    -- Verifica se é uma URL válida do YouTube
+    if not url:find("youtu") then
+        status:setText("Erro: URL do YouTube invalida")
+        return false
     end
     
-    local data = response.readAll()
-    response.close()
+    -- Tenta usar diferentes métodos para tocar
+    local commands = {
+        "yt dl " .. url,
+        "music play " .. url,
+        "ccyt play " .. url
+    }
     
-    local success, items = pcall(textutils.unserialiseJSON, data)
-    
-    if not success or not items or #items == 0 then
-        status:setText("Sem resultados")
-        return
+    for _, cmd in ipairs(commands) do
+        status:setText("Tentando: " .. cmd)
+        local success = shell.run(cmd)
+        if success then
+            currentProcess = true
+            status:setText("Tocando: " .. url:sub(1, 30) .. "...")
+            return true
+        end
+        sleep(1)
     end
     
-    status:setText("Encontrados: " .. #items .. " musicas")
-    results:clear()
+    -- Se nenhum player funcionar, tenta baixar um
+    status:setText("Instalando player...")
+    local installSuccess = shell.run("wget", "run", "https://pastebin.com/raw/example") -- Substitua por URL real
     
-    for i = 1, math.min(8, #items) do
-        results:addItem(items[i].title)
+    if installSuccess then
+        status:setText("Player instalado, tentando novamente...")
+        sleep(2)
+        return playMusic(url)
     end
     
-    results:setVisible(true)
+    status:setText("Erro: Nenhum player disponivel")
+    return false
+end
+
+-- Função para parar música
+local function stopMusic()
+    if currentProcess then
+        os.queueEvent("terminate")
+        currentProcess = nil
+        status:setText("Musica parada")
+    else
+        status:setText("Nenhuma musica tocando")
+    end
+end
+
+-- Função para ajustar volume
+local function setVolume(newVol)
+    volume = math.max(0, math.min(100, newVol))
+    -- Aqui você implementaria o controle de volume real
+    -- dependendo do player que estiver usando
+    status:setText("Volume: " .. volume .. "%")
+end
+
+-- Eventos dos botões
+playBtn:onClick(function()
+    local url = urlInput:getValue()
+    if url and url ~= "" then
+        playMusic(url)
+    else
+        status:setText("Digite uma URL do YouTube")
+    end
 end)
 
--- Quando o usuário seleciona algo na lista
-results:onSelect(function(self)
+stopBtn:onClick(function()
+    stopMusic()
+end)
+
+volUpBtn:onClick(function()
+    setVolume(volume + 10)
+end)
+
+volDownBtn:onClick(function()
+    setVolume(volume - 10)
+end)
+
+-- Quando seleciona uma URL salva
+savedList:onSelect(function(self)
     local idx = self:getItemIndex()
-    status:setText("Selecionado item " .. idx)
+    local items = {
+        "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        "https://youtu.be/dQw4w9WgXcQ"
+    }
+    
+    if items[idx] then
+        urlInput:setValue(items[idx])
+        status:setText("URL carregada: " .. items[idx]:sub(1, 30) .. "...")
+    end
 end)
+
+-- Instruções
+local helpLabel = main:addLabel()
+helpLabel:setText("Cole URL do YouTube acima e clique em TOCAR")
+helpLabel:setPosition(2, 24)
+helpLabel:setForeground(colors.gray)
 
 -- Inicia a interface
-basalt.lua()
+basalt.run()
