@@ -264,4 +264,4 @@ footer:setForeground(colors.gray)
 urlInput:setFocus()
 
 -- Iniciar a interface
-basalt.run()
+basalt.autoUpdate()
