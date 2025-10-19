@@ -1,89 +1,28 @@
 --[[
     YouTube Music Player (Basalt UI)
-    Autor: elf4iries
-    Versão: Corrigida - sem setInputType
+    Versão com verificação de instalação do music
 ]]
 
--- Função para verificar se o Basalt está instalado corretamente
-local function isBasaltInstalled()
-    if fs.exists("/basalt") then
-        return true
-    end
-    if fs.exists("/basalt.lua") then
-        return true
-    end
-    if fs.exists("/rom/modules/main/basalt.lua") then
-        return true
-    end
-    
-    local success, _ = pcall(require, "basalt")
-    return success
+-- Verificar Basalt
+if not fs.exists("/basalt") then
+    print("Instalando Basalt...")
+    shell.run("wget", "run", "https://raw.githubusercontent.com/Pyroxenium/Basalt2/main/install.lua")
 end
 
--- Instalar Basalt automaticamente se não estiver instalado
-if not isBasaltInstalled() then
-    print("================================")
-    print(" Instalando Basalt...")
-    print("================================")
-    
-    print("Tentando metodo 1: Pyroxenium/Basalt2...")
-    local success1 = shell.run("wget", "run", "https://raw.githubusercontent.com/Pyroxenium/Basalt2/main/install.lua")
-    
-    if not success1 or not isBasaltInstalled() then
-        print("Metodo 1 falhou. Tentando metodo 2: madefor.cc...")
-        local success2 = shell.run("wget", "run", "https://basalt.madefor.cc/install.lua")
-        
-        if not success2 or not isBasaltInstalled() then
-            print("Metodo 2 falhou. Tentando metodo 3: Download direto...")
-            local response = http.get("https://raw.githubusercontent.com/Pyroxenium/Basalt2/main/basalt.lua")
-            if response then
-                local basaltCode = response.readAll()
-                response.close()
-                local file = fs.open("basalt.lua", "w")
-                file.write(basaltCode)
-                file.close()
-                print("Download direto concluido!")
-            else
-                print("ERRO NA INSTALACAO")
-                print("Tente instalar manualmente:")
-                print("wget run https://basalt.madefor.cc/install.lua")
-                return
-            end
-        end
-    end
-    
-    print("Basalt instalado com sucesso!")
-end
+-- Carregar Basalt
+local basalt = require("basalt")
 
--- Carregar Basalt com segurança
-local basalt
-local success, err = pcall(function()
-    basalt = require("basalt")
-end)
-
-if not success then
-    print("Erro ao carregar Basalt: " .. tostring(err))
-    return
-end
-
--- Cria a janela principal
+-- Criar janela principal
 local main = basalt.createFrame()
 main:setBackground(colors.black)
 
--- Banner simplificado
-local banner = {
-    "   ELF4IRIES",
-    "  YOUTUBE MUSIC"
-}
+-- Título
+local title = main:addLabel()
+title:setText("YOUTUBE MUSIC PLAYER")
+title:setPosition(2, 2)
+title:setForeground(colors.white)
 
-for i, line in ipairs(banner) do
-    local label = main:addLabel()
-    label:setText(line)
-    label:setPosition(2, i)
-    label:setForeground(colors.lightBlue)
-end
-
--- Campo para URL do YouTube
+-- Campo de URL
 local urlLabel = main:addLabel()
 urlLabel:setText("URL do YouTube:")
 urlLabel:setPosition(2, 4)
@@ -91,11 +30,11 @@ urlLabel:setForeground(colors.cyan)
 
 local urlInput = main:addInput()
 urlInput:setPosition(2, 5)
-urlInput:setSize(40, 1)
+urlInput:setSize(35, 1)
 urlInput:setBackground(colors.blue)
 urlInput:setForeground(colors.white)
 
--- Botão para tocar URL
+-- Botões
 local playBtn = main:addButton()
 playBtn:setText("TOCAR")
 playBtn:setPosition(2, 7)
@@ -103,7 +42,6 @@ playBtn:setSize(8, 3)
 playBtn:setBackground(colors.green)
 playBtn:setForeground(colors.black)
 
--- Botão para parar
 local stopBtn = main:addButton()
 stopBtn:setText("PARAR")
 stopBtn:setPosition(12, 7)
@@ -111,132 +49,93 @@ stopBtn:setSize(8, 3)
 stopBtn:setBackground(colors.red)
 stopBtn:setForeground(colors.black)
 
--- Status do player
+-- Status
 local status = main:addLabel()
-status:setText("Pronto para tocar")
+status:setText("Pronto")
 status:setPosition(2, 11)
 status:setForeground(colors.lime)
 
--- Lista de músicas salvas (opcional)
-local savedLabel = main:addLabel()
-savedLabel:setText("URLs salvas:")
-savedLabel:setPosition(2, 14)
-savedLabel:setForeground(colors.cyan)
+-- Variável para controle do player
+local playing = false
 
-local savedList = main:addList()
-savedList:setPosition(2, 15)
-savedList:setSize(40, 6)
-savedList:setBackground(colors.blue)
-savedList:setForeground(colors.white)
-
--- Adicionar algumas URLs de exemplo
-savedList:addItem("Exemplo: youtube.com/watch?v=...")
-
--- Variáveis do player
-local currentProcess = nil
-
--- Função para tocar música
-local function playMusic(url)
-    if currentProcess then
-        -- Se já está tocando algo, para primeiro
-        currentProcess = false
-        os.queueEvent("terminate")
-        sleep(0.5)
-    end
-    
-    status:setText("Iniciando player...")
-    
-    -- Verifica se é uma URL válida do YouTube
-    if not url or url == "" or url == "Exemplo: youtube.com/watch?v=..." then
-        status:setText("Erro: Digite uma URL valida")
-        return false
-    end
-    
-    -- Tenta usar o programa music do madefor.cc
-    status:setText("Baixando e tocando...")
-    
-    -- Primeiro verifica se o programa music existe
-    if not fs.exists("/music") then
-        -- Tenta baixar o music player
-        status:setText("Instalando music player...")
-        local download = shell.run("wget", "https://music.madefor.cc/music.lua", "music")
-        if not download then
-            status:setText("Erro: Nao foi possivel instalar o player")
-            return false
+-- Verificar e instalar o programa music se necessário
+local function checkMusic()
+    if not fs.exists("music") then
+        status:setText("Baixando music player...")
+        local success = shell.run("wget", "https://music.madefor.cc/music.lua", "music")
+        if success then
+            status:setText("Music player instalado.")
+        else
+            status:setText("Erro ao baixar music player.")
         end
     end
-    
-    -- Agora tenta tocar a música
-    status:setText("Tocando: " .. url:sub(1, 20) .. "...")
-    
-    -- Executa em uma thread separada para não travar a interface
-    local function playThread()
-        shell.run("music", "play", url)
-    end
-    
-    -- Inicia a thread de reprodução
-    currentProcess = true
-    parallel.waitForAny(
-        function()
-            playThread()
-        end,
-        function()
-            while currentProcess do
-                local event = os.pullEvent()
-                if event == "terminate" then
-                    break
-                end
-            end
-        end
-    )
-    
-    currentProcess = nil
-    status:setText("Reproducao finalizada")
-    return true
 end
 
--- Função para parar música
-local function stopMusic()
-    if currentProcess then
-        currentProcess = false
-        os.queueEvent("terminate")
-        status:setText("Musica parada")
-    else
-        status:setText("Nenhuma musica tocando")
+-- Chamar a verificação ao iniciar
+checkMusic()
+
+-- Função simplificada para tocar música
+local function playMusic(url)
+    if playing then
+        status:setText("Ja esta tocando musica")
+        return
     end
+    
+    if not url or url == "" then
+        status:setText("Digite uma URL")
+        return
+    end
+    
+    status:setText("Iniciando...")
+    playing = true
+
+    -- Executar o comando music play em um thread separado para não travar a interface
+    local function runMusic()
+        shell.run("music", "play", url)
+        playing = false
+        status:setText("Reproducao concluida")
+    end
+
+    -- Iniciar a thread
+    parallel.waitForAny(runMusic, function()
+        while playing do
+            local event = os.pullEvent("terminate")
+            if event == "terminate" then
+                -- Encerrar o processo de música (não há uma maneira direta, então usamos o evento)
+                break
+            end
+        end
+    end)
+end
+
+-- Função para parar
+local function stopMusic()
+    if not playing then
+        status:setText("Nao esta tocando")
+        return
+    end
+
+    -- Envia um evento terminate para parar a thread de reprodução
+    os.queueEvent("terminate")
+    playing = false
+    status:setText("Parando...")
 end
 
 -- Eventos dos botões
 playBtn:onClick(function()
-    local success, url = pcall(function()
-        return urlInput:getValue()
-    end)
-    
-    if success and url and url ~= "" then
-        playMusic(url)
-    else
-        status:setText("Digite uma URL do YouTube")
-    end
+    local url = urlInput:getValue()
+    playMusic(url)
 end)
 
 stopBtn:onClick(function()
     stopMusic()
 end)
 
--- Quando seleciona uma URL salva
-savedList:onSelect(function(self)
-    local idx = self:getItemIndex()
-    if idx == 1 then
-        urlInput:setValue("")
-        status:setText("Digite uma URL do YouTube valida")
-    end
-end)
-
 -- Instruções
-local helpLabel = main:addLabel()
-helpLabel:setText("Cole URL do YouTube acima e clique em TOCAR")
-helpLabel:setPosition(2, 22)
-helpLabel:setForeground(colors.gray)
+local help = main:addLabel()
+help:setText("Use: music play <url>")
+help:setPosition(2, 13)
+help:setForeground(colors.gray)
 
--- Inicia a interface
-basalt.run()
+-- Iniciar
+basalt.autoUpdate()
