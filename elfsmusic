@@ -52,7 +52,6 @@ urlInput:setPosition(1, 2)
 urlInput:setSize(45, 1)
 urlInput:setBackground(colors.white)
 urlInput:setForeground(colors.black)
-urlInput:setInput("")
 
 -- Controles principais
 local controls = content:addFrame()
