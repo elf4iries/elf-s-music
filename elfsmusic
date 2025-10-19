@@ -1,15 +1,9 @@
 --[[
     YouTube Music Player (Basalt UI)
-    Versão com múltiplos métodos de reprodução
+    Versão sem instalação automática do Basalt
 ]]
 
--- Verificar Basalt
-if not fs.exists("/basalt") then
-    print("Instalando Basalt...")
-    shell.run("wget", "run", "https://raw.githubusercontent.com/Pyroxenium/Basalt2/main/install.lua")
-end
-
--- Carregar Basalt
+-- Carregar Basalt (assume que já está instalado)
 local basalt = require("basalt")
 
 -- Criar janela principal
@@ -55,72 +49,55 @@ status:setText("Pronto")
 status:setPosition(2, 11)
 status:setForeground(colors.lime)
 
--- Instalar players se necessário
-if not fs.exists("music") then
-    status:setText("Instalando music player...")
-    shell.run("wget", "https://music.madefor.cc/music.lua", "music")
-end
-
-if not fs.exists("yt") then
-    shell.run("wget", "run", "https://pastebin.com/raw/Xf0HQH0H", "yt")
-end
-
--- Função para tocar música
-local function playMusic(url)
+-- Função para validar URL do YouTube
+local function isValidYouTubeURL(url)
     if not url or url == "" then
-        status:setText("Digite uma URL")
-        return false
+        return false, "URL vazia"
     end
     
-    status:setText("Tentando reproduzir...")
-    
-    -- Tenta vários métodos de reprodução
-    local methods = {
-        {"music", "play"},
-        {"yt", "play"},
-        {"ccyt", "play"}
+    -- Verifica padrões comuns de URLs do YouTube
+    local patterns = {
+        "youtube.com/watch%?v=",
+        "youtu.be/",
+        "youtube.com/embed/",
+        "youtube.com/v/"
     }
     
-    for i, method in ipairs(methods) do
-        local player, command = method[1], method[2]
-        
-        if fs.exists(player) then
-            status:setText("Usando " .. player .. "...")
-            
-            local result = shell.run(player, command, url)
-            
-            if result then
-                status:setText("Reproduzindo com " .. player)
-                return true
-            else
-                status:setText(player .. " falhou, tentando próximo...")
-            end
-        end
-    end
-    
-    -- Se nenhum funcionar, tenta instalar um player novo
-    status:setText("Instalando novo player...")
-    local installResult = shell.run("wget", "run", "https://pastebin.com/raw/Xf0HQH0H", "yt2")
-    
-    if installResult and fs.exists("yt2") then
-        status:setText("Tentando com yt2...")
-        local result = shell.run("yt2", "play", url)
-        if result then
-            status:setText("Reproduzindo com yt2")
+    for _, pattern in ipairs(patterns) do
+        if string.find(url, pattern) then
             return true
         end
     end
     
-    status:setText("ERRO: Nenhum player funcionou")
-    return false
+    return false, "URL do YouTube inválida"
+end
+
+-- Função para tocar música
+local function playMusic(url)
+    -- Validar URL
+    local valid, errorMsg = isValidYouTubeURL(url)
+    if not valid then
+        status:setText(errorMsg)
+        return false
+    end
+    
+    status:setText("Iniciando reprodução...")
+    
+    -- Tenta usar o programa music
+    local result = shell.run("music", "play", url)
+    
+    if result then
+        status:setText("Reprodução concluída")
+        return true
+    else
+        status:setText("Erro na reprodução")
+        return false
+    end
 end
 
 -- Função para parar
 local function stopMusic()
-    -- Para todos os players possíveis
     shell.run("music", "stop")
-    shell.run("yt", "stop")
-    shell.run("ccyt", "stop")
     status:setText("Parado")
 end
 
@@ -134,11 +111,16 @@ stopBtn:onClick(function()
     stopMusic()
 end)
 
--- Exemplo de URL
-local example = main:addLabel()
-example:setText("Ex: youtu.be/dQw4w9WgXcQ")
-example:setPosition(2, 13)
-example:setForeground(colors.gray)
+-- Instruções
+local help = main:addLabel()
+help:setText("Exemplo: youtube.com/watch?v=...")
+help:setPosition(2, 13)
+help:setForeground(colors.gray)
+
+local help2 = main:addLabel()
+help2:setText("ou youtu.be/...")
+help2:setPosition(2, 14)
+help2:setForeground(colors.gray)
 
 -- Iniciar
-basalt.run()
+basalt.autoUpdate()
