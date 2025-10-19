@@ -1,22 +1,32 @@
 --[[
     YouTube Music Player (Basalt UI)
     Autor: elf4iries 🧚
-    Versão: Sem instalador automático
+    Instalação automática: Basalt do Pyroxenium
     Tema: fada mágica com interface azul
 ]]
 
 -- Caminho da pasta Basalt
 local basaltPath = "/basalt"
 
--- 🔹 Verificar se Basalt existe
+-- 🔹 Baixar automaticamente o Basalt se não existir
 if not fs.exists(basaltPath) then
-    print("Erro: Basalt não encontrado em " .. basaltPath)
-    print("Por favor, instale o Basalt manualmente:")
-    print("wget run https://basalt.madefor.cc/install.lua")
-    return
+    print("Baixando Basalt...")
+    print("URL: https://raw.githubusercontent.com/Pyroxenium/Basalt2/main/install.lua")
+    
+    -- Baixar e executar o instalador
+    local success = shell.run("wget", "run", "https://raw.githubusercontent.com/Pyroxenium/Basalt2/main/install.lua")
+    
+    if not success then
+        print("Erro: não foi possível instalar o Basalt automaticamente.")
+        print("Tente instalar manualmente:")
+        print("wget run https://raw.githubusercontent.com/Pyroxenium/Basalt2/main/install.lua")
+        return
+    end
+    
+    print("Basalt instalado com sucesso!")
 end
 
--- 🔹 Carregar Basalt
+-- 🔹 Carregar Basalt com segurança
 local basalt = require("basalt")
 
 -- Cria a janela principal
