@@ -1,6 +1,6 @@
 --[[
     YouTube Music Player (Basalt UI)
-    Versão com verificação de instalação do music
+    Versão com múltiplos métodos de reprodução
 ]]
 
 -- Verificar Basalt
@@ -55,70 +55,73 @@ status:setText("Pronto")
 status:setPosition(2, 11)
 status:setForeground(colors.lime)
 
--- Variável para controle do player
-local playing = false
-
--- Verificar e instalar o programa music se necessário
-local function checkMusic()
-    if not fs.exists("music") then
-        status:setText("Baixando music player...")
-        local success = shell.run("wget", "https://music.madefor.cc/music.lua", "music")
-        if success then
-            status:setText("Music player instalado.")
-        else
-            status:setText("Erro ao baixar music player.")
-        end
-    end
+-- Instalar players se necessário
+if not fs.exists("music") then
+    status:setText("Instalando music player...")
+    shell.run("wget", "https://music.madefor.cc/music.lua", "music")
 end
 
--- Chamar a verificação ao iniciar
-checkMusic()
+if not fs.exists("yt") then
+    shell.run("wget", "run", "https://pastebin.com/raw/Xf0HQH0H", "yt")
+end
 
--- Função simplificada para tocar música
+-- Função para tocar música
 local function playMusic(url)
-    if playing then
-        status:setText("Ja esta tocando musica")
-        return
-    end
-    
     if not url or url == "" then
         status:setText("Digite uma URL")
-        return
+        return false
     end
     
-    status:setText("Iniciando...")
-    playing = true
-
-    -- Executar o comando music play em um thread separado para não travar a interface
-    local function runMusic()
-        shell.run("music", "play", url)
-        playing = false
-        status:setText("Reproducao concluida")
-    end
-
-    -- Iniciar a thread
-    parallel.waitForAny(runMusic, function()
-        while playing do
-            local event = os.pullEvent("terminate")
-            if event == "terminate" then
-                -- Encerrar o processo de música (não há uma maneira direta, então usamos o evento)
-                break
+    status:setText("Tentando reproduzir...")
+    
+    -- Tenta vários métodos de reprodução
+    local methods = {
+        {"music", "play"},
+        {"yt", "play"},
+        {"ccyt", "play"}
+    }
+    
+    for i, method in ipairs(methods) do
+        local player, command = method[1], method[2]
+        
+        if fs.exists(player) then
+            status:setText("Usando " .. player .. "...")
+            
+            local result = shell.run(player, command, url)
+            
+            if result then
+                status:setText("Reproduzindo com " .. player)
+                return true
+            else
+                status:setText(player .. " falhou, tentando próximo...")
             end
         end
-    end)
+    end
+    
+    -- Se nenhum funcionar, tenta instalar um player novo
+    status:setText("Instalando novo player...")
+    local installResult = shell.run("wget", "run", "https://pastebin.com/raw/Xf0HQH0H", "yt2")
+    
+    if installResult and fs.exists("yt2") then
+        status:setText("Tentando com yt2...")
+        local result = shell.run("yt2", "play", url)
+        if result then
+            status:setText("Reproduzindo com yt2")
+            return true
+        end
+    end
+    
+    status:setText("ERRO: Nenhum player funcionou")
+    return false
 end
 
 -- Função para parar
 local function stopMusic()
-    if not playing then
-        status:setText("Nao esta tocando")
-        return
-    end
-
-    -- Envia um evento terminate para parar a thread de reprodução
-    os.queueEvent("terminate")
-    playing = false
-    status:setText("Parando...")
+    -- Para todos os players possíveis
+    shell.run("music", "stop")
+    shell.run("yt", "stop")
+    shell.run("ccyt", "stop")
+    status:setText("Parado")
 end
 
 -- Eventos dos botões
@@ -131,11 +134,11 @@ stopBtn:onClick(function()
     stopMusic()
 end)
 
--- Instruções
-local help = main:addLabel()
-help:setText("Use: music play <url>")
-help:setPosition(2, 13)
-help:setForeground(colors.gray)
+-- Exemplo de URL
+local example = main:addLabel()
+example:setText("Ex: youtu.be/dQw4w9WgXcQ")
+example:setPosition(2, 13)
+example:setForeground(colors.gray)
 
 -- Iniciar
 basalt.autoUpdate()
