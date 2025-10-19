@@ -1,7 +1,7 @@
 --[[
     YouTube Music Player (Basalt UI)
     Autor: elf4iries
-    Versão: Com player de música integrado
+    Versão: Corrigida - sem setInputType
 ]]
 
 -- Função para verificar se o Basalt está instalado corretamente
@@ -94,7 +94,6 @@ urlInput:setPosition(2, 5)
 urlInput:setSize(40, 1)
 urlInput:setBackground(colors.blue)
 urlInput:setForeground(colors.white)
-urlInput:setInputType("text")
 
 -- Botão para tocar URL
 local playBtn = main:addButton()
@@ -118,116 +117,102 @@ status:setText("Pronto para tocar")
 status:setPosition(2, 11)
 status:setForeground(colors.lime)
 
--- Controles de volume
-local volLabel = main:addLabel()
-volLabel:setText("Volume:")
-volLabel:setPosition(2, 13)
-volLabel:setForeground(colors.cyan)
-
-local volUpBtn = main:addButton()
-volUpBtn:setText("+")
-volUpBtn:setPosition(10, 13)
-volUpBtn:setSize(4, 2)
-volUpBtn:setBackground(colors.lightBlue)
-
-local volDownBtn = main:addButton()
-volDownBtn:setText("-")
-volDownBtn:setPosition(15, 13)
-volDownBtn:setSize(4, 2)
-volDownBtn:setBackground(colors.lightBlue)
-
 -- Lista de músicas salvas (opcional)
 local savedLabel = main:addLabel()
 savedLabel:setText("URLs salvas:")
-savedLabel:setPosition(2, 16)
+savedLabel:setPosition(2, 14)
 savedLabel:setForeground(colors.cyan)
 
 local savedList = main:addList()
-savedList:setPosition(2, 17)
+savedList:setPosition(2, 15)
 savedList:setSize(40, 6)
 savedList:setBackground(colors.blue)
 savedList:setForeground(colors.white)
 
 -- Adicionar algumas URLs de exemplo
-savedList:addItem("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
-savedList:addItem("https://youtu.be/dQw4w9WgXcQ")
+savedList:addItem("Exemplo: youtube.com/watch?v=...")
 
 -- Variáveis do player
 local currentProcess = nil
-local volume = 100
 
 -- Função para tocar música
 local function playMusic(url)
     if currentProcess then
         -- Se já está tocando algo, para primeiro
+        currentProcess = false
         os.queueEvent("terminate")
-        currentProcess = nil
         sleep(0.5)
     end
     
     status:setText("Iniciando player...")
     
     -- Verifica se é uma URL válida do YouTube
-    if not url:find("youtu") then
-        status:setText("Erro: URL do YouTube invalida")
+    if not url or url == "" or url == "Exemplo: youtube.com/watch?v=..." then
+        status:setText("Erro: Digite uma URL valida")
         return false
     end
     
-    -- Tenta usar diferentes métodos para tocar
-    local commands = {
-        "yt dl " .. url,
-        "music play " .. url,
-        "ccyt play " .. url
-    }
+    -- Tenta usar o programa music do madefor.cc
+    status:setText("Baixando e tocando...")
     
-    for _, cmd in ipairs(commands) do
-        status:setText("Tentando: " .. cmd)
-        local success = shell.run(cmd)
-        if success then
-            currentProcess = true
-            status:setText("Tocando: " .. url:sub(1, 30) .. "...")
-            return true
+    -- Primeiro verifica se o programa music existe
+    if not fs.exists("/music") then
+        -- Tenta baixar o music player
+        status:setText("Instalando music player...")
+        local download = shell.run("wget", "https://music.madefor.cc/music.lua", "music")
+        if not download then
+            status:setText("Erro: Nao foi possivel instalar o player")
+            return false
         end
-        sleep(1)
     end
     
-    -- Se nenhum player funcionar, tenta baixar um
-    status:setText("Instalando player...")
-    local installSuccess = shell.run("wget", "run", "https://pastebin.com/raw/example") -- Substitua por URL real
+    -- Agora tenta tocar a música
+    status:setText("Tocando: " .. url:sub(1, 20) .. "...")
     
-    if installSuccess then
-        status:setText("Player instalado, tentando novamente...")
-        sleep(2)
-        return playMusic(url)
+    -- Executa em uma thread separada para não travar a interface
+    local function playThread()
+        shell.run("music", "play", url)
     end
     
-    status:setText("Erro: Nenhum player disponivel")
-    return false
+    -- Inicia a thread de reprodução
+    currentProcess = true
+    parallel.waitForAny(
+        function()
+            playThread()
+        end,
+        function()
+            while currentProcess do
+                local event = os.pullEvent()
+                if event == "terminate" then
+                    break
+                end
+            end
+        end
+    )
+    
+    currentProcess = nil
+    status:setText("Reproducao finalizada")
+    return true
 end
 
 -- Função para parar música
 local function stopMusic()
     if currentProcess then
+        currentProcess = false
         os.queueEvent("terminate")
-        currentProcess = nil
         status:setText("Musica parada")
     else
         status:setText("Nenhuma musica tocando")
     end
 end
 
--- Função para ajustar volume
-local function setVolume(newVol)
-    volume = math.max(0, math.min(100, newVol))
-    -- Aqui você implementaria o controle de volume real
-    -- dependendo do player que estiver usando
-    status:setText("Volume: " .. volume .. "%")
-end
-
 -- Eventos dos botões
 playBtn:onClick(function()
-    local url = urlInput:getValue()
-    if url and url ~= "" then
+    local success, url = pcall(function()
+        return urlInput:getValue()
+    end)
+    
+    if success and url and url ~= "" then
         playMusic(url)
     else
         status:setText("Digite uma URL do YouTube")
@@ -238,33 +223,20 @@ stopBtn:onClick(function()
     stopMusic()
 end)
 
-volUpBtn:onClick(function()
-    setVolume(volume + 10)
-end)
-
-volDownBtn:onClick(function()
-    setVolume(volume - 10)
-end)
-
 -- Quando seleciona uma URL salva
 savedList:onSelect(function(self)
     local idx = self:getItemIndex()
-    local items = {
-        "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-        "https://youtu.be/dQw4w9WgXcQ"
-    }
-    
-    if items[idx] then
-        urlInput:setValue(items[idx])
-        status:setText("URL carregada: " .. items[idx]:sub(1, 30) .. "...")
+    if idx == 1 then
+        urlInput:setValue("")
+        status:setText("Digite uma URL do YouTube valida")
     end
 end)
 
 -- Instruções
 local helpLabel = main:addLabel()
 helpLabel:setText("Cole URL do YouTube acima e clique em TOCAR")
-helpLabel:setPosition(2, 24)
+helpLabel:setPosition(2, 22)
 helpLabel:setForeground(colors.gray)
 
 -- Inicia a interface
-basalt.run()
+basalt.autoUpdate()
