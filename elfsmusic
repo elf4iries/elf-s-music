@@ -314,4 +314,4 @@ if not http then
     err:setForeground(colors.red)
 end
 
-basalt.autoUpdate()
+basalt.run()
