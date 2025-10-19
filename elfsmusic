@@ -1,35 +1,22 @@
 --[[
     YouTube Music Player (Basalt UI)
     Autor: elf4iries 🧚
-    Correção: cria /basalt só se necessário e baixa automaticamente o Basalt
+    Versão: Sem instalador automático
     Tema: fada mágica com interface azul
 ]]
 
 -- Caminho da pasta Basalt
 local basaltPath = "/basalt"
 
--- 🔹 Baixar automaticamente o Basalt se não existir
+-- 🔹 Verificar se Basalt existe
 if not fs.exists(basaltPath) then
-    print("Baixando Basalt...")
-    local basaltUrl = "https://basalt.madefor.cc/install.lua"
-    local basaltInstaller = http.get(basaltUrl)
-
-    if basaltInstaller then
-        local installCode = basaltInstaller.readAll()
-        basaltInstaller.close()
-        local file = fs.open("/basalt_install.lua", "w")
-        file.write(installCode)
-        file.close()
-        shell.run("/basalt_install.lua")
-        fs.delete("/basalt_install.lua")
-        print("Basalt instalado com sucesso!")
-    else
-        print("Erro: não foi possível baixar o Basalt.")
-        return
-    end
+    print("Erro: Basalt não encontrado em " .. basaltPath)
+    print("Por favor, instale o Basalt manualmente:")
+    print("wget run https://basalt.madefor.cc/install.lua")
+    return
 end
 
--- 🔹 Carregar Basalt com segurança
+-- 🔹 Carregar Basalt
 local basalt = require("basalt")
 
 -- Cria a janela principal
