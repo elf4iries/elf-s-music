@@ -6,9 +6,6 @@ if not speaker then
 end
 
 local searchResults = {}
-local isPlaying = false
-local isPaused = false
-local audioResponse = nil
 
 local SEARCH_API = "https://music.madefor.cc/search"
 local CONVERTER_API = "https://music.madefor.cc/api/convert"
@@ -23,7 +20,6 @@ local c = {
 }
 
 local main = basalt.createFrame()
-main:setBackground(c.bg)
 
 local searchFrame = main:addFrame()
 searchFrame:setPosition(1, 1)
@@ -42,7 +38,7 @@ subtitle:setForeground(c.light)
 
 local searchInput = searchFrame:addInput()
 searchInput:setPosition(3, 6)
-searchInput:setSize("parent.w - 4", 3)
+searchInput:setSize(45, 3)
 searchInput:setBackground(c.dark)
 searchInput:setForeground(c.white)
 
@@ -62,14 +58,13 @@ local resultsLabel = searchFrame:addLabel()
 resultsLabel:setText("Resultados:")
 resultsLabel:setPosition(3, 14)
 resultsLabel:setForeground(c.purple)
+resultsLabel:setVisible(false)
 
 local resultsList = searchFrame:addList()
 resultsList:setPosition(3, 15)
-resultsList:setSize("parent.w - 4", "parent.h - 15")
+resultsList:setSize(45, 10)
 resultsList:setBackground(c.dark)
 resultsList:setForeground(c.white)
-
-resultsLabel:setVisible(false)
 resultsList:setVisible(false)
 
 local playerFrame = main:addFrame()
@@ -139,7 +134,7 @@ local function updateProgressBar(percent)
     local empty = 10 - filled
     local bar = "[" .. string.rep("=", filled) .. string.rep("-", empty) .. "]"
     progressBar:setText(bar)
-    progressText:setText(percent .. "%")
+    progressText:setText(tostring(percent) .. "%")
 end
 
 local function searchYouTube(query)
@@ -148,123 +143,48 @@ local function searchYouTube(query)
     resultsList:setVisible(false)
     searchResults = {}
     
-    local function doSearch()
-        local url = SEARCH_API .. "?q=" .. textutils.urlEncode(query)
-        local ok, response = pcall(http.get, url, nil, true)
-        
-        statusLabel:setText("")
-        
-        if not ok or not response then
-            resultsList:clear()
-            resultsList:addItem("Erro ao conectar")
-            resultsList:setVisible(true)
-            resultsLabel:setVisible(true)
-            return
-        end
-        
-        local data = response.readAll()
-        response.close()
-        
-        local results = textutils.unserialiseJSON(data)
-        
-        if not results or #results == 0 then
-            resultsList:clear()
-            resultsList:addItem("Nenhum resultado")
-            resultsList:setVisible(true)
-            resultsLabel:setVisible(true)
-            return
-        end
-        
-        searchResults = results
+    local url = SEARCH_API .. "?q=" .. textutils.urlEncode(query)
+    local response = http.get(url, nil, true)
+    
+    statusLabel:setText("")
+    
+    if not response then
         resultsList:clear()
-        
-        for i = 1, math.min(10, #results) do
-            resultsList:addItem(results[i].title)
-        end
-        
+        resultsList:addItem("Erro ao conectar")
         resultsList:setVisible(true)
         resultsLabel:setVisible(true)
+        return
     end
     
-    -- Executa em thread paralela
-    parallel.waitForAny(function()
-        doSearch()
-    end, function()
-        sleep(0.1)
-    end)
-end
-
-local function playVideo(video)
-    searchFrame:setVisible(false)
-    playerFrame:setVisible(true)
+    local data = response.readAll()
+    response.close()
     
-    playerTitle:setText(video.title)
-    playerArtist:setText(video.channel)
-    playerStatus:setText("Convertendo...")
-    updateProgressBar(0)
-    isPaused = false
+    local results = textutils.unserialiseJSON(data)
     
-    local function doPlay()
-        local url = CONVERTER_API .. "?id=" .. video.id
-        local ok, response = pcall(http.get, url, nil, true)
-        
-        if not ok or not response then
-            playerStatus:setText("Erro ao converter")
-            return
-        end
-        
-        audioResponse = response
-        playerStatus:setText("Tocando...")
-        isPlaying = true
-        
-        local decoder = require("cc.audio.dfpwm").make_decoder()
-        local prog = 0
-        
-        while isPlaying and audioResponse do
-            if not isPaused then
-                local chunk = audioResponse.read(16 * 1024)
-                
-                if not chunk then
-                    playerStatus:setText("Finalizado!")
-                    isPlaying = false
-                    updateProgressBar(100)
-                    break
-                end
-                
-                local buffer = decoder(chunk)
-                
-                while not speaker.playAudio(buffer) and isPlaying and not isPaused do
-                    os.pullEvent("speaker_audio_empty")
-                end
-                
-                prog = prog + 1
-                if prog % 5 == 0 then
-                    local p = tonumber(progressText:getText():match("%d+")) or 0
-                    local newP = math.min(100, p + 2)
-                    updateProgressBar(newP)
-                end
-            else
-                sleep(0.1)
-            end
-        end
-        
-        if audioResponse then
-            audioResponse.close()
-            audioResponse = nil
+    if not results or type(results) ~= "table" or #results == 0 then
+        resultsList:clear()
+        resultsList:addItem("Nenhum resultado")
+        resultsList:setVisible(true)
+        resultsLabel:setVisible(true)
+        return
+    end
+    
+    searchResults = results
+    resultsList:clear()
+    
+    for i = 1, math.min(10, #results) do
+        if results[i] and results[i].title then
+            resultsList:addItem(results[i].title)
         end
     end
     
-    -- Executa em paralelo
-    parallel.waitForAny(function()
-        doPlay()
-    end, function()
-        sleep(0.1)
-    end)
+    resultsList:setVisible(true)
+    resultsLabel:setVisible(true)
 end
 
 searchButton:onClick(function()
     local query = searchInput:getValue()
-    if query ~= "" then
+    if query and query ~= "" then
         searchYouTube(query)
     end
 end)
@@ -272,7 +192,7 @@ end)
 searchInput:onKey(function(self, event, key)
     if key == keys.enter then
         local query = searchInput:getValue()
-        if query ~= "" then
+        if query and query ~= "" then
             searchYouTube(query)
         end
     end
@@ -280,39 +200,29 @@ end)
 
 resultsList:onSelect(function(self)
     local idx = self:getItemIndex()
-    if idx > 0 and searchResults[idx] then
-        playVideo(searchResults[idx])
+    if idx and idx > 0 and searchResults[idx] then
+        local video = searchResults[idx]
+        
+        searchFrame:setVisible(false)
+        playerFrame:setVisible(true)
+        
+        playerTitle:setText(video.title or "Sem titulo")
+        playerArtist:setText(video.channel or "Sem canal")
+        playerStatus:setText("Video ID: " .. (video.id or "N/A"))
+        updateProgressBar(0)
     end
 end)
 
 pauseButton:onClick(function()
-    isPaused = not isPaused
-    if isPaused then
-        pauseButton:setText("> CONTINUAR")
-        playerStatus:setText("Pausado")
-    else
-        pauseButton:setText("|| PAUSAR")
-        playerStatus:setText("Tocando...")
-    end
+    playerStatus:setText("Funcao em desenvolvimento")
 end)
 
 stopButton:onClick(function()
-    isPlaying = false
-    isPaused = false
-    if audioResponse then
-        audioResponse.close()
-        audioResponse = nil
-    end
     playerStatus:setText("Parado")
     updateProgressBar(0)
 end)
 
 backButton:onClick(function()
-    isPlaying = false
-    if audioResponse then
-        audioResponse.close()
-        audioResponse = nil
-    end
     playerFrame:setVisible(false)
     searchFrame:setVisible(true)
     resultsList:clear()
