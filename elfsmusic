@@ -99,13 +99,222 @@ playerStatus:setText("")
 playerStatus:setPosition(3, 8)
 playerStatus:setForeground(c.purple)
 
-local progressBar = playerFrame:addProgressbar()
-progressBar:setPosition(3, 10)
-progressBar:setSize("parent.w - 4", 1)
-progressBar:setProgress(0)
-progressBar:setProgressBar(c.med)
-progressBar:setBackground(c.dark)
+-- Barra de progresso usando Label
+local progressLabel = playerFrame:addLabel()
+progressLabel:setText("Progresso:")
+progressLabel:setPosition(3, 10)
+progressLabel:setForeground(c.light)
+
+local progressBar = playerFrame:addLabel()
+progressBar:setText("[----------]")
+progressBar:setPosition(3, 11)
+progressBar:setForeground(c.med)
 
 local progressText = playerFrame:addLabel()
 progressText:setText("0%")
-progressText:setPos
+progressText:setPosition(18, 11)
+progressText:setForeground(c.light)
+
+local pauseButton = playerFrame:addButton()
+pauseButton:setText("|| PAUSAR")
+pauseButton:setPosition(3, 13)
+pauseButton:setSize(15, 3)
+pauseButton:setBackground(c.med)
+pauseButton:setForeground(c.bg)
+
+local stopButton = playerFrame:addButton()
+stopButton:setText("[] PARAR")
+stopButton:setPosition(20, 13)
+stopButton:setSize(15, 3)
+stopButton:setBackground(c.purple)
+stopButton:setForeground(c.white)
+
+local backButton = playerFrame:addButton()
+backButton:setText("< VOLTAR")
+backButton:setPosition(3, 17)
+backButton:setSize(12, 3)
+backButton:setBackground(c.dark)
+backButton:setForeground(c.light)
+
+-- Atualiza barra de progresso visual
+local function updateProgressBar(percent)
+    local filled = math.floor(percent / 10)
+    local empty = 10 - filled
+    local bar = "[" .. string.rep("=", filled) .. string.rep("-", empty) .. "]"
+    progressBar:setText(bar)
+    progressText:setText(percent .. "%")
+end
+
+local function searchYouTube(query)
+    statusLabel:setText("Buscando...")
+    resultsLabel:setVisible(false)
+    resultsList:setVisible(false)
+    searchResults = {}
+    
+    basalt.schedule(function()
+        local url = SEARCH_API .. "?q=" .. textutils.urlEncode(query)
+        local ok, response = pcall(http.get, url, nil, true)
+        
+        statusLabel:setText("")
+        
+        if not ok or not response then
+            resultsList:clear()
+            resultsList:addItem("Erro ao conectar")
+            resultsList:setVisible(true)
+            resultsLabel:setVisible(true)
+            return
+        end
+        
+        local data = response.readAll()
+        response.close()
+        
+        local results = textutils.unserialiseJSON(data)
+        
+        if not results or #results == 0 then
+            resultsList:clear()
+            resultsList:addItem("Nenhum resultado")
+            resultsList:setVisible(true)
+            resultsLabel:setVisible(true)
+            return
+        end
+        
+        searchResults = results
+        resultsList:clear()
+        
+        for i = 1, math.min(10, #results) do
+            resultsList:addItem(results[i].title)
+        end
+        
+        resultsList:setVisible(true)
+        resultsLabel:setVisible(true)
+    end)
+end
+
+local function playVideo(video)
+    searchFrame:setVisible(false)
+    playerFrame:setVisible(true)
+    
+    playerTitle:setText(video.title)
+    playerArtist:setText(video.channel)
+    playerStatus:setText("Convertendo...")
+    updateProgressBar(0)
+    isPaused = false
+    
+    basalt.schedule(function()
+        local url = CONVERTER_API .. "?id=" .. video.id
+        local ok, response = pcall(http.get, url, nil, true)
+        
+        if not ok or not response then
+            playerStatus:setText("Erro ao converter")
+            return
+        end
+        
+        audioResponse = response
+        playerStatus:setText("Tocando...")
+        isPlaying = true
+        
+        local decoder = require("cc.audio.dfpwm").make_decoder()
+        local prog = 0
+        
+        while isPlaying and audioResponse do
+            if not isPaused then
+                local chunk = audioResponse.read(16 * 1024)
+                
+                if not chunk then
+                    playerStatus:setText("Finalizado!")
+                    isPlaying = false
+                    updateProgressBar(100)
+                    break
+                end
+                
+                local buffer = decoder(chunk)
+                
+                while not speaker.playAudio(buffer) and isPlaying and not isPaused do
+                    os.pullEvent("speaker_audio_empty")
+                end
+                
+                prog = prog + 1
+                if prog % 5 == 0 then
+                    local currentProg = tonumber(progressText:getText():match("%d+")) or 0
+                    local newProg = math.min(100, currentProg + 2)
+                    updateProgressBar(newProg)
+                end
+            else
+                sleep(0.1)
+            end
+        end
+        
+        if audioResponse then
+            audioResponse.close()
+            audioResponse = nil
+        end
+    end)
+end
+
+searchButton:onClick(function()
+    local query = searchInput:getValue()
+    if query ~= "" then
+        searchYouTube(query)
+    end
+end)
+
+searchInput:onKey(function(self, event, key)
+    if key == keys.enter then
+        local query = searchInput:getValue()
+        if query ~= "" then
+            searchYouTube(query)
+        end
+    end
+end)
+
+resultsList:onSelect(function(self)
+    local idx = self:getItemIndex()
+    if idx > 0 and searchResults[idx] then
+        playVideo(searchResults[idx])
+    end
+end)
+
+pauseButton:onClick(function()
+    isPaused = not isPaused
+    if isPaused then
+        pauseButton:setText("> CONTINUAR")
+        playerStatus:setText("Pausado")
+    else
+        pauseButton:setText("|| PAUSAR")
+        playerStatus:setText("Tocando...")
+    end
+end)
+
+stopButton:onClick(function()
+    isPlaying = false
+    isPaused = false
+    if audioResponse then
+        audioResponse.close()
+        audioResponse = nil
+    end
+    playerStatus:setText("Parado")
+    updateProgressBar(0)
+end)
+
+backButton:onClick(function()
+    isPlaying = false
+    if audioResponse then
+        audioResponse.close()
+        audioResponse = nil
+    end
+    playerFrame:setVisible(false)
+    searchFrame:setVisible(true)
+    resultsList:clear()
+    resultsList:setVisible(false)
+    resultsLabel:setVisible(false)
+    searchInput:setValue("")
+end)
+
+if not http then
+    local err = main:addLabel()
+    err:setText("HTTP DESABILITADO!")
+    err:setPosition("center", "center")
+    err:setForeground(colors.red)
+end
+
+basalt.autoUpdate()
