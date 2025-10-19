@@ -99,7 +99,6 @@ playerStatus:setText("")
 playerStatus:setPosition(3, 8)
 playerStatus:setForeground(c.purple)
 
--- Barra de progresso usando Label
 local progressLabel = playerFrame:addLabel()
 progressLabel:setText("Progresso:")
 progressLabel:setPosition(3, 10)
@@ -136,7 +135,6 @@ backButton:setSize(12, 3)
 backButton:setBackground(c.dark)
 backButton:setForeground(c.light)
 
--- Atualiza barra de progresso visual
 local function updateProgressBar(percent)
     local filled = math.floor(percent / 10)
     local empty = 10 - filled
@@ -317,4 +315,5 @@ if not http then
     err:setForeground(colors.red)
 end
 
-basalt.autoUpdate()
+-- CORREÇÃO AQUI: Use basalt.start() ao invés de autoUpdate()
+basalt.start()
