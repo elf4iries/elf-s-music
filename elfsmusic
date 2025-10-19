@@ -1,5 +1,5 @@
 --[[
-    YouTube Music Player (Basalt UI)
+    YouTube Music Player para Advanced Pocket Noise
 ]]
 
 local basalt = require("basalt")
@@ -7,13 +7,15 @@ local basalt = require("basalt")
 local main = basalt.createFrame()
 main:setBackground(colors.black)
 
+-- Título
 local title = main:addLabel()
-title:setText("YOUTUBE MUSIC PLAYER")
+title:setText("ADVANCED POCKET NOISE")
 title:setPosition(2, 2)
 title:setForeground(colors.white)
 
+-- Campo de URL
 local urlLabel = main:addLabel()
-urlLabel:setText("URL do YouTube:")
+urlLabel:setText("YouTube URL:")
 urlLabel:setPosition(2, 4)
 urlLabel:setForeground(colors.cyan)
 
@@ -23,73 +25,57 @@ urlInput:setSize(35, 1)
 urlInput:setBackground(colors.blue)
 urlInput:setForeground(colors.white)
 
+-- Botões
 local playBtn = main:addButton()
-playBtn:setText("TOCAR")
+playBtn:setText("PLAY")
 playBtn:setPosition(2, 7)
 playBtn:setSize(8, 3)
 playBtn:setBackground(colors.green)
 playBtn:setForeground(colors.black)
 
 local stopBtn = main:addButton()
-stopBtn:setText("PARAR")
+stopBtn:setText("STOP")
 stopBtn:setPosition(12, 7)
 stopBtn:setSize(8, 3)
 stopBtn:setBackground(colors.red)
 stopBtn:setForeground(colors.black)
 
+-- Status
 local status = main:addLabel()
-status:setText("Pronto")
+status:setText("Ready")
 status:setPosition(2, 11)
 status:setForeground(colors.lime)
 
-local function isValidYouTubeURL(url)
-    if not url or url == "" then
-        return false, "URL vazia"
-    end
-    
-    local patterns = {
-        "youtube.com/watch%?v=",
-        "youtu.be/",
-        "youtube.com/embed/",
-        "youtube.com/v/"
-    }
-    
-    for _, pattern in ipairs(patterns) do
-        if string.find(url, pattern) then
-            return true
-        end
-    end
-    
-    return false, "URL do YouTube inválida"
-end
-
+-- Função corrigida para tocar música
 local function playMusic(url)
-    local valid, errorMsg = isValidYouTubeURL(url)
-    if not valid then
-        status:setText(errorMsg)
+    if not url or url == "" then
+        status:setText("Enter URL")
         return false
     end
     
-    status:setText("Iniciando reprodução...")
+    status:setText("Playing...")
     
-    local result = shell.run("music", "play", url)
+    -- Usa o programa noise do Advanced Pocket Computer
+    local result = shell.run("noise", url)
     
     if result then
-        status:setText("Reprodução concluída")
+        status:setText("Finished")
         return true
     else
-        status:setText("Erro na reprodução")
+        status:setText("Playback error")
         return false
     end
 end
 
+-- Função para parar
 local function stopMusic()
-    shell.run("music", "stop")
-    status:setText("Parado")
+    shell.run("noise", "stop")
+    status:setText("Stopped")
 end
 
+-- Eventos dos botões - CORRIGIDO
 playBtn:onClick(function()
-    local url = urlInput:getValue()
+    local url = urlInput:getText()  -- Corrigido: getText() em vez de getValue()
     playMusic(url)
 end)
 
@@ -97,14 +83,15 @@ stopBtn:onClick(function()
     stopMusic()
 end)
 
+-- Instruções
 local help = main:addLabel()
-help:setText("Exemplo: youtube.com/watch?v=...")
+help:setText("Example: youtube.com/watch?v=...")
 help:setPosition(2, 13)
 help:setForeground(colors.gray)
 
 local help2 = main:addLabel()
-help2:setText("ou youtu.be/...")
+help2:setText("or youtu.be/...")
 help2:setPosition(2, 14)
-help2:setForeground(colors.gray)
+help:setForeground(colors.gray)
 
 basalt.run()
