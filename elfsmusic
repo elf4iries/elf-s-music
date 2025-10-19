@@ -1,84 +1,84 @@
-local basalt = require("basalt")
+local speaker = peripheral.find("speaker")
 
-local main = basalt.createFrame()
-main:setBackground(colors.black)
+if not speaker then
+    error("Speaker nao encontrado!")
+end
 
-local title = main:addLabel()
-title:setText("YOUTUBE MUSIC PLAYER")
-title:setPosition(10, 3)
-title:setForeground(colors.white)
-
-local inputLabel = main:addLabel()
-inputLabel:setText("Digite:")
-inputLabel:setPosition(3, 6)
-inputLabel:setForeground(colors.cyan)
-
-local input = main:addInput()
-input:setPosition(3, 7)
-input:setSize(40, 3)
-input:setBackground(colors.blue)
-input:setForeground(colors.white)
-
-local btn = main:addButton()
-btn:setText("BUSCAR")
-btn:setPosition(3, 11)
-btn:setSize(12, 3)
-btn:setBackground(colors.lightBlue)
-btn:setForeground(colors.black)
-
-local status = main:addLabel()
-status:setText("")
-status:setPosition(3, 15)
-status:setForeground(colors.lime)
-
-local results = main:addList()
-results:setPosition(3, 17)
-results:setSize(40, 8)
-results:setBackground(colors.blue)
-results:setForeground(colors.white)
-results:setVisible(false)
-
-btn:onClick(function()
-    local query = input:getValue()
-    if not query or query == "" then
-        status:setText("Digite algo!")
-        return
-    end
-    
-    status:setText("Buscando...")
-    results:setVisible(false)
+local function searchYouTube(query)
+    term.clear()
+    term.setCursorPos(1, 1)
+    print("=== YOUTUBE MUSIC SEARCH ===")
+    print()
+    print("Buscando: " .. query)
+    print()
     
     local url = "https://music.madefor.cc/search?q=" .. textutils.urlEncode(query)
     local response = http.get(url, nil, true)
     
     if not response then
-        status:setText("Erro ao conectar!")
+        print("Erro ao conectar!")
         return
     end
     
     local data = response.readAll()
     response.close()
     
-    local items = textutils.unserialiseJSON(data)
+    local results = textutils.unserialiseJSON(data)
     
-    if not items or #items == 0 then
-        status:setText("Sem resultados")
+    if not results or #results == 0 then
+        print("Nenhum resultado encontrado!")
         return
     end
     
-    status:setText("Encontrados: " .. #items)
-    results:clear()
+    print("Resultados:")
+    print()
     
-    for i = 1, math.min(8, #items) do
-        results:addItem(items[i].title)
+    for i = 1, math.min(10, #results) do
+        print(i .. ". " .. results[i].title)
+        print("   " .. results[i].channel)
+        print()
     end
     
-    results:setVisible(true)
-end)
+    print("Digite o numero para ver detalhes (0 = nova busca):")
+    local choice = tonumber(read())
+    
+    if choice and choice > 0 and choice <= #results then
+        local video = results[choice]
+        term.clear()
+        term.setCursorPos(1, 1)
+        print("=== VIDEO SELECIONADO ===")
+        print()
+        print("Titulo: " .. video.title)
+        print("Canal: " .. video.channel)
+        print("ID: " .. video.id)
+        print()
+        print("Pressione qualquer tecla para voltar...")
+        os.pullEvent("key")
+    end
+    
+    if choice == 0 then
+        return true
+    end
+end
 
-results:onSelect(function(self)
-    local idx = self:getItemIndex()
-    status:setText("Selecionado item " .. idx)
-end)
-
-basalt.run()
+while true do
+    term.clear()
+    term.setCursorPos(1, 1)
+    print("=== YOUTUBE MUSIC PLAYER ===")
+    print()
+    print("Digite o nome da musica (Q para sair):")
+    write("> ")
+    
+    local query = read()
+    
+    if query:lower() == "q" then
+        term.clear()
+        term.setCursorPos(1, 1)
+        print("Ate logo!")
+        break
+    end
+    
+    if query ~= "" then
+        searchYouTube(query)
+    end
+end
