@@ -1,22 +1,17 @@
 --[[
     YouTube Music Player (Basalt UI)
-    Versão sem instalação automática do Basalt
 ]]
 
--- Carregar Basalt (assume que já está instalado)
 local basalt = require("basalt")
 
--- Criar janela principal
 local main = basalt.createFrame()
 main:setBackground(colors.black)
 
--- Título
 local title = main:addLabel()
 title:setText("YOUTUBE MUSIC PLAYER")
 title:setPosition(2, 2)
 title:setForeground(colors.white)
 
--- Campo de URL
 local urlLabel = main:addLabel()
 urlLabel:setText("URL do YouTube:")
 urlLabel:setPosition(2, 4)
@@ -28,7 +23,6 @@ urlInput:setSize(35, 1)
 urlInput:setBackground(colors.blue)
 urlInput:setForeground(colors.white)
 
--- Botões
 local playBtn = main:addButton()
 playBtn:setText("TOCAR")
 playBtn:setPosition(2, 7)
@@ -43,19 +37,16 @@ stopBtn:setSize(8, 3)
 stopBtn:setBackground(colors.red)
 stopBtn:setForeground(colors.black)
 
--- Status
 local status = main:addLabel()
 status:setText("Pronto")
 status:setPosition(2, 11)
 status:setForeground(colors.lime)
 
--- Função para validar URL do YouTube
 local function isValidYouTubeURL(url)
     if not url or url == "" then
         return false, "URL vazia"
     end
     
-    -- Verifica padrões comuns de URLs do YouTube
     local patterns = {
         "youtube.com/watch%?v=",
         "youtu.be/",
@@ -72,9 +63,7 @@ local function isValidYouTubeURL(url)
     return false, "URL do YouTube inválida"
 end
 
--- Função para tocar música
 local function playMusic(url)
-    -- Validar URL
     local valid, errorMsg = isValidYouTubeURL(url)
     if not valid then
         status:setText(errorMsg)
@@ -83,7 +72,6 @@ local function playMusic(url)
     
     status:setText("Iniciando reprodução...")
     
-    -- Tenta usar o programa music
     local result = shell.run("music", "play", url)
     
     if result then
@@ -95,13 +83,11 @@ local function playMusic(url)
     end
 end
 
--- Função para parar
 local function stopMusic()
     shell.run("music", "stop")
     status:setText("Parado")
 end
 
--- Eventos dos botões
 playBtn:onClick(function()
     local url = urlInput:getValue()
     playMusic(url)
@@ -111,7 +97,6 @@ stopBtn:onClick(function()
     stopMusic()
 end)
 
--- Instruções
 local help = main:addLabel()
 help:setText("Exemplo: youtube.com/watch?v=...")
 help:setPosition(2, 13)
@@ -122,5 +107,4 @@ help2:setText("ou youtu.be/...")
 help2:setPosition(2, 14)
 help2:setForeground(colors.gray)
 
--- Iniciar
-basalt.autoUpdate()
+basalt.run()
