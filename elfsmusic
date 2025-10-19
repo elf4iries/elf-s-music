@@ -1,10 +1,25 @@
 --[[
-    YouTube Music Player - Conversor madefor.cc
-    Converte e toca URLs do YouTube automaticamente
+    YouTube Music Player - Versão Corrigida e Testada
+    Baseado no Basalt 1.6.5 para CC:Tweaked
 ]]
 
-local basalt = require("basalt")
+-- Verificação segura do Basalt
+local basalt
+if not fs.exists("/basalt") then
+    print("Basalt não encontrado. Instalando...")
+    shell.run("wget", "run", "https://raw.githubusercontent.com/Pyroxenium/Basalt/main/install.lua")
+end
 
+local success, err = pcall(function()
+    basalt = require("basalt")
+end)
+
+if not success then
+    print("Erro ao carregar Basalt: " .. err)
+    return
+end
+
+-- Criar a janela principal
 local main = basalt.createFrame()
 main:setBackground(colors.lightBlue)
 
@@ -15,158 +30,174 @@ local BACKGROUND_COLOR = colors.lightBlue
 
 -- Título
 local title = main:addLabel()
-title:setText("YOUTUBE CONVERTER")
+title:setText("YOUTUBE MUSIC PLAYER")
 title:setPosition(2, 2)
 title:setForeground(TEXT_COLOR)
 
 local subtitle = main:addLabel()
-subtitle:setText("Converte e toca automaticamente")
+subtitle:setText("music.madefor.cc")
 subtitle:setPosition(2, 3)
 subtitle:setForeground(colors.gray)
+
+-- Linha separadora
+local line = main:addLabel()
+line:setText(string.rep("─", 48))
+line:setPosition(1, 4)
+line:setForeground(colors.blue)
 
 -- Campo de URL
 local urlLabel = main:addLabel()
 urlLabel:setText("Cole o link do YouTube:")
-urlLabel:setPosition(2, 5)
+urlLabel:setPosition(2, 6)
 urlLabel:setForeground(TEXT_COLOR)
 
 local urlInput = main:addInput()
-urlInput:setPosition(2, 6)
+urlInput:setPosition(2, 7)
 urlInput:setSize(45, 1)
 urlInput:setBackground(colors.white)
 urlInput:setForeground(colors.black)
 
--- Barra de progresso da conversão
-local progressLabel = main:addLabel()
-progressLabel:setText("Progresso:")
-progressLabel:setPosition(2, 8)
-progressLabel:setForeground(TEXT_COLOR)
-
-local progressBar = main:addProgressbar()
-progressBar:setPosition(2, 9)
-progressBar:setSize(45, 1)
-progressBar:setProgress(0)
-progressBar:setBackground(colors.gray)
-progressBar:setForeground(colors.green)
-
 -- Controles
 local playBtn = main:addButton()
-playBtn:setText("CONVERTER & TOCAR")
-playBtn:setPosition(2, 11)
-playBtn:setSize(18, 3)
+playBtn:setText("TOCAR")
+playBtn:setPosition(2, 9)
+playBtn:setSize(10, 3)
 playBtn:setBackground(BUTTON_COLOR)
 playBtn:setForeground(TEXT_COLOR)
 
 local stopBtn = main:addButton()
 stopBtn:setText("PARAR")
-stopBtn:setPosition(22, 11)
-stopBtn:setSize(8, 3)
+stopBtn:setPosition(14, 9)
+stopBtn:setSize(10, 3)
 stopBtn:setBackground(colors.red)
 stopBtn:setForeground(TEXT_COLOR)
 
 -- Status
 local statusLabel = main:addLabel()
 statusLabel:setText("Status:")
-statusLabel:setPosition(2, 15)
+statusLabel:setPosition(2, 13)
 statusLabel:setForeground(TEXT_COLOR)
 
 local status = main:addLabel()
-status:setText("Pronto para converter")
-status:setPosition(9, 15)
+status:setText("Pronto")
+status:setPosition(9, 13)
 status:setForeground(colors.lime)
 
--- Informações do áudio
+-- Informações
 local infoLabel = main:addLabel()
-infoLabel:setText("Informações:")
-infoLabel:setPosition(2, 17)
+infoLabel:setText("Info:")
+infoLabel:setPosition(2, 14)
 infoLabel:setForeground(TEXT_COLOR)
 
-local audioInfo = main:addLabel()
-audioInfo:setText("Nenhum áudio carregado")
-audioInfo:setPosition(2, 18)
-audioInfo:setForeground(colors.yellow)
+local info = main:addLabel()
+info:setText("Aguardando URL...")
+info:setPosition(8, 14)
+info:setForeground(colors.yellow)
 
--- Verificar/instalar o music
+-- Área de log
+local logLabel = main:addLabel()
+logLabel:setText("Log:")
+logLabel:setPosition(2, 16)
+logLabel:setForeground(TEXT_COLOR)
+
+local log = main:addTextfield()
+log:setPosition(2, 17)
+log:setSize(45, 5)
+log:setBackground(colors.black)
+log:setForeground(colors.white)
+log:setValue("Bem-vindo ao YouTube Music Player!\n")
+
+-- Instalar o programa music se necessário
 local function installMusic()
     if not fs.exists("music") then
-        status:setText("Instalando conversor...")
-        progressBar:setProgress(25)
-        
+        log:addText("Instalando music player...\n")
         local success = shell.run("wget", "https://music.madefor.cc/music.lua", "music")
-        
         if success then
-            progressBar:setProgress(100)
-            status:setText("Conversor instalado!")
-            sleep(1)
-            progressBar:setProgress(0)
+            log:addText("Music player instalado com sucesso!\n")
             return true
         else
-            status:setText("Erro na instalação")
+            log:addText("Erro na instalação do music player\n")
             return false
         end
     end
     return true
 end
 
--- Variáveis de estado
-local isPlaying = false
-local isConverting = false
-
--- Função para simular progresso de conversão
-local function simulateConversion()
-    for i = 1, 100, 5 do
-        if not isConverting then break end
-        progressBar:setProgress(i)
-        status:setText("Convertendo... " .. i .. "%")
-        sleep(0.1)
-    end
+-- Verificar instalação na inicialização
+if not installMusic() then
+    status:setText("Erro instalação")
+    status:setForeground(colors.red)
 end
 
--- Função principal para converter e tocar
-local function convertAndPlay(url)
+-- Variáveis de estado
+local isPlaying = false
+
+-- Função para validar URL do YouTube
+local function isValidYouTubeURL(url)
     if not url or url == "" then
-        status:setText("Cole um link do YouTube")
+        return false, "URL vazia"
+    end
+    
+    -- Padrões de URLs do YouTube
+    if url:find("youtube.com/watch") or url:find("youtu.be/") then
+        return true
+    end
+    
+    return false, "URL do YouTube inválida"
+end
+
+-- Função para tocar música
+local function playMusic(url)
+    local valid, errorMsg = isValidYouTubeURL(url)
+    if not valid then
+        status:setText("URL inválida")
+        status:setForeground(colors.red)
+        info:setText(errorMsg)
+        log:addText("Erro: " .. errorMsg .. "\n")
         return false
     end
     
     if isPlaying then
-        status:setText("Já está tocando")
+        status:setText("Já tocando")
+        info:setText("Aguarde a reprodução atual terminar")
         return false
     end
     
-    -- Verificar se é um link do YouTube válido
-    if not (url:find("youtube.com") or url:find("youtu.be")) then
-        status:setText("Link do YouTube inválido")
-        return false
-    end
+    status:setText("Convertendo...")
+    status:setForeground(colors.yellow)
+    info:setText("Processando: " .. url:sub(1, 30) .. "...")
+    log:addText("Iniciando conversão: " .. url .. "\n")
     
-    if not installMusic() then
-        return false
-    end
-    
-    status:setText("Iniciando conversão...")
-    isConverting = true
     isPlaying = true
     
-    -- Simular progresso de conversão
+    -- Executar em thread separada para não travar a interface
     parallel.waitForAny(
         function()
-            simulateConversion()
+            local success, result = pcall(function()
+                return shell.run("music", "play", url)
+            end)
+            
+            isPlaying = false
+            
+            if success and result then
+                status:setText("Concluído")
+                status:setForeground(colors.lime)
+                info:setText("Reprodução finalizada")
+                log:addText("Reprodução concluída com sucesso\n")
+            else
+                status:setText("Erro")
+                status:setForeground(colors.red)
+                info:setText("Falha na reprodução")
+                log:addText("Erro na reprodução\n")
+            end
         end,
         function()
-            -- Converter e tocar
-            local success = shell.run("music", "play", url)
-            
-            isConverting = false
-            isPlaying = false
-            progressBar:setProgress(0)
-            
-            if success then
-                status:setText("Conversão completa!")
-                audioInfo:setText("Reprodução finalizada")
-            else
-                status:setText("Erro na conversão/reprodução")
-                audioInfo:setText("Verifique o link e conexão")
+            -- Thread de monitoramento para permitir parada
+            while isPlaying do
+                local event = os.pullEvent()
+                if event == "stop_playback" then
+                    break
+                end
             end
         end
     )
@@ -174,52 +205,63 @@ local function convertAndPlay(url)
     return true
 end
 
--- Função para parar
-local function stopPlayback()
+-- Função para parar reprodução
+local function stopMusic()
     if isPlaying then
-        isConverting = false
         isPlaying = false
-        shell.run("music", "stop")
-        progressBar:setProgress(0)
-        status:setText("Reprodução interrompida")
-        audioInfo:setText("Reprodução parada pelo usuário")
+        os.queueEvent("stop_playback")
+        
+        local success = pcall(function()
+            shell.run("music", "stop")
+        end)
+        
+        status:setText("Parado")
+        status:setForeground(colors.orange)
+        info:setText("Reprodução interrompida")
+        log:addText("Reprodução parada pelo usuário\n")
+        
+        return success
     else
-        status:setText("Nada tocando no momento")
+        status:setText("Não tocando")
+        info:setText("Nenhuma reprodução em andamento")
+        return false
     end
 end
 
 -- Event handlers
 playBtn:onClick(function()
     local url = urlInput:getValue()
-    audioInfo:setText("Processando: " .. url:sub(1, 30) .. "...")
-    convertAndPlay(url)
+    playMusic(url)
 end)
 
 stopBtn:onClick(function()
-    stopPlayback()
+    stopMusic()
 end)
 
--- Exemplos de links
+-- Exemplos
 local examplesLabel = main:addLabel()
-examplesLabel:setText("Exemplos de links:")
-examplesLabel:setPosition(2, 20)
+examplesLabel:setText("Exemplos:")
+examplesLabel:setPosition(2, 23)
 examplesLabel:setForeground(TEXT_COLOR)
 
 local example1 = main:addLabel()
-example1:setText("youtube.com/watch?v=...")
-example1:setPosition(2, 21)
+example1:setText("youtube.com/watch?v=dQw4w9WgXcQ")
+example1:setPosition(2, 24)
 example1:setForeground(colors.gray)
 
 local example2 = main:addLabel()
-example2:setText("youtu.be/...")
-example2:setPosition(2, 22)
+example2:setText("youtu.be/dQw4w9WgXcQ")
+example2:setPosition(2, 25)
 example2:setForeground(colors.gray)
 
--- Dica
-local tip = main:addLabel()
-tip:setText("Dica: O conversor baixa e toca automaticamente")
-tip:setPosition(2, 24)
-tip:setForeground(colors.cyan)
+-- Footer
+local footer = main:addLabel()
+footer:setText("Pressione Ctrl+T para sair")
+footer:setPosition(2, 27)
+footer:setForeground(colors.gray)
 
--- Iniciar interface
+-- Foco no input
+urlInput:setFocus()
+
+-- Iniciar a interface
 basalt.run()
