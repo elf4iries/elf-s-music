@@ -1,0 +1,464 @@
+-- Instalador completo: Basalt + YouTube Music Player
+-- Tema: Periwinkle Blue
+
+-- Verifica se Basalt está instalado
+local function checkBasalt()
+    local ok, basalt = pcall(require, "basalt")
+    return ok, basalt
+end
+
+-- Instala Basalt
+local function installBasalt()
+    print("Basalt nao encontrado!")
+    print("Instalando Basalt...")
+    print()
+    
+    local installer = http.get("https://basalt.madefor.cc/install.lua")
+    
+    if not installer then
+        error("Erro ao baixar instalador do Basalt!")
+    end
+    
+    local code = installer.readAll()
+    installer.close()
+    
+    -- Executa instalador
+    local fn = load(code)
+    fn()
+    
+    print()
+    print("Basalt instalado com sucesso!")
+    print("Reiniciando player...")
+    sleep(2)
+end
+
+-- Verifica e instala se necessário
+local hasBasalt, basalt = checkBasalt()
+
+if not hasBasalt then
+    installBasalt()
+    hasBasalt, basalt = checkBasalt()
+    
+    if not hasBasalt then
+        error("Falha ao instalar Basalt. Instale manualmente.")
+    end
+end
+
+-- ========== INÍCIO DO PLAYER ==========
+
+local speaker = peripheral.find("speaker")
+
+if not speaker then
+    error("Speaker nao encontrado! Conecte um speaker ao computador.")
+end
+
+-- Variáveis globais
+local searchResults = {}
+local currentPlaying = nil
+local isPlaying = false
+local isPaused = false
+local currentDecoder = nil
+local audioResponse = nil
+
+-- APIs
+local SEARCH_API = "https://music.madefor.cc/search"
+local CONVERTER_API = "https://music.madefor.cc/api/convert"
+
+-- Tema Periwinkle Blue com tons escuros e claros
+local theme = {
+    darkest = colors.black,
+    dark = colors.blue,
+    medium = colors.lightBlue,
+    light = colors.cyan,
+    lightest = colors.white,
+    accent = colors.purple,
+}
+
+-- Frame principal
+local main = basalt.createFrame()
+    :setBackground(theme.darkest)
+    :setForeground(theme.lightest)
+
+-- ========== TELA DE BUSCA ==========
+local searchFrame = main:addFrame()
+    :setPosition(1, 1)
+    :setSize("parent.w", "parent.h")
+    :setBackground(theme.darkest)
+
+-- Header com gradiente simulado
+local headerBg = searchFrame:addFrame()
+    :setPosition(1, 1)
+    :setSize("parent.w", 4)
+    :setBackground(theme.dark)
+
+local header = searchFrame:addLabel()
+    :setText("YOUTUBE MUSIC PLAYER")
+    :setPosition("center", 2)
+    :setForeground(theme.lightest)
+
+local subtitle = searchFrame:addLabel()
+    :setText("Pesquise qualquer musica do YouTube")
+    :setPosition("center", 3)
+    :setForeground(theme.light)
+
+-- Decoração lateral
+local leftBar = searchFrame:addFrame()
+    :setPosition(1, 5)
+    :setSize(2, "parent.h - 4")
+    :setBackground(theme.medium)
+
+local rightBar = searchFrame:addFrame()
+    :setPosition("parent.w - 1", 5)
+    :setSize(2, "parent.h - 4")
+    :setBackground(theme.medium)
+
+-- Input de busca
+local searchLabel = searchFrame:addLabel()
+    :setText("Digite o nome da musica ou artista:")
+    :setPosition(4, 6)
+    :setForeground(theme.light)
+
+local searchInput = searchFrame:addInput()
+    :setPosition(4, 7)
+    :setSize("parent.w - 6", 3)
+    :setBackground(theme.dark)
+    :setForeground(theme.lightest)
+
+-- Botão de buscar
+local searchButton = searchFrame:addButton()
+    :setText("Buscar")
+    :setPosition(4, 11)
+    :setSize(15, 3)
+    :setBackground(theme.medium)
+    :setForeground(theme.darkest)
+
+-- Status/Loading
+local statusLabel = searchFrame:addLabel()
+    :setText("")
+    :setPosition(21, 12)
+    :setForeground(theme.light)
+
+-- Lista de resultados
+local resultsLabel = searchFrame:addLabel()
+    :setText("Resultados:")
+    :setPosition(4, 15)
+    :setForeground(theme.accent)
+    :hide()
+
+local resultsList = searchFrame:addList()
+    :setPosition(4, 16)
+    :setSize("parent.w - 6", "parent.h - 16")
+    :setBackground(theme.dark)
+    :setForeground(theme.lightest)
+    :setSelectionColor(theme.medium, theme.darkest)
+    :hide()
+
+-- ========== TELA DE PLAYER ==========
+local playerFrame = main:addFrame()
+    :setPosition(1, 1)
+    :setSize("parent.w", "parent.h")
+    :setBackground(theme.darkest)
+    :hide()
+
+-- Header do player
+local playerHeaderBg = playerFrame:addFrame()
+    :setPosition(1, 1)
+    :setSize("parent.w", 3)
+    :setBackground(theme.dark)
+
+local playerHeaderText = playerFrame:addLabel()
+    :setText("Tocando Agora")
+    :setPosition("center", 2)
+    :setForeground(theme.light)
+
+-- Card da música
+local musicCard = playerFrame:addFrame()
+    :setPosition(5, 5)
+    :setSize("parent.w - 8", 8)
+    :setBackground(theme.dark)
+
+local playerTitle = playerFrame:addLabel()
+    :setText("")
+    :setPosition(7, 6)
+    :setForeground(theme.lightest)
+
+local playerArtist = playerFrame:addLabel()
+    :setText("")
+    :setPosition(7, 7)
+    :setForeground(theme.light)
+
+local divider = playerFrame:addLabel()
+    :setText(string.rep("-", 30))
+    :setPosition(7, 8)
+    :setForeground(theme.medium)
+
+local playerStatus = playerFrame:addLabel()
+    :setText("Carregando...")
+    :setPosition(7, 10)
+    :setForeground(theme.accent)
+
+-- Barra de progresso
+local progressLabel = playerFrame:addLabel()
+    :setText("Progresso:")
+    :setPosition(5, 14)
+    :setForeground(theme.light)
+
+local progressBar = playerFrame:addProgressbar()
+    :setPosition(5, 15)
+    :setSize("parent.w - 8", 1)
+    :setProgress(0)
+    :setProgressBar(theme.medium)
+    :setBackground(theme.dark)
+
+local progressText = playerFrame:addLabel()
+    :setText("0%")
+    :setPosition("parent.w - 6", 14)
+    :setForeground(theme.light)
+
+-- Controles
+local controlsFrame = playerFrame:addFrame()
+    :setPosition(1, 17)
+    :setSize("parent.w", 5)
+    :setBackground(theme.darkest)
+
+local pauseButton = playerFrame:addButton()
+    :setText("|| PAUSAR")
+    :setPosition("center - 8", 18)
+    :setSize(15, 3)
+    :setBackground(theme.medium)
+    :setForeground(theme.darkest)
+
+local stopButton = playerFrame:addButton()
+    :setText("[] PARAR")
+    :setPosition("center + 9", 18)
+    :setSize(15, 3)
+    :setBackground(theme.accent)
+    :setForeground(theme.lightest)
+
+local backButton = playerFrame:addButton()
+    :setText("< VOLTAR")
+    :setPosition(3, "parent.h - 2")
+    :setSize(12, 3)
+    :setBackground(theme.dark)
+    :setForeground(theme.light)
+
+-- ========== FUNÇÕES ==========
+
+local function searchYouTube(query)
+    statusLabel:setText("Buscando...")
+    resultsList:hide()
+    resultsLabel:hide()
+    searchResults = {}
+    
+    local searchUrl = SEARCH_API .. "?q=" .. textutils.urlEncode(query)
+    
+    basalt.schedule(function()
+        local success, response = pcall(function()
+            return http.get(searchUrl, nil, true)
+        end)
+        
+        statusLabel:setText("")
+        
+        if not success or not response then
+            resultsList:clear()
+            resultsList:addItem("Erro: Nao foi possivel conectar")
+            resultsList:addItem("Verifique se HTTP esta habilitado")
+            resultsList:show()
+            resultsLabel:show()
+            return
+        end
+        
+        local data = response.readAll()
+        response.close()
+        
+        local results = textutils.unserialiseJSON(data)
+        
+        if not results or #results == 0 then
+            resultsList:clear()
+            resultsList:addItem("Nenhum resultado encontrado!")
+            resultsList:show()
+            resultsLabel:show()
+            return
+        end
+        
+        searchResults = results
+        resultsList:clear()
+        
+        for i = 1, math.min(10, #results) do
+            local result = results[i]
+            resultsList:addItem(result.title .. " - " .. result.channel)
+        end
+        
+        resultsList:show()
+        resultsLabel:show()
+    end)
+end
+
+local function playVideo(video)
+    searchFrame:hide()
+    playerFrame:show()
+    
+    playerTitle:setText(video.title)
+    playerArtist:setText("Por: " .. video.channel)
+    playerStatus:setText("Convertendo audio...")
+    progressBar:setProgress(0)
+    progressText:setText("0%")
+    
+    pauseButton:setText("|| PAUSAR")
+    isPaused = false
+    
+    local convertUrl = CONVERTER_API .. "?id=" .. video.id
+    
+    basalt.schedule(function()
+        local success, response = pcall(function()
+            return http.get(convertUrl, nil, true)
+        end)
+        
+        if not success or not response then
+            playerStatus:setText("Erro ao converter audio!")
+            return
+        end
+        
+        audioResponse = response
+        playerStatus:setText("Tocando agora...")
+        isPlaying = true
+        currentPlaying = video
+        
+        local decoder = require("cc.audio.dfpwm").make_decoder()
+        currentDecoder = decoder
+        
+        local progress = 0
+        
+        while isPlaying and audioResponse do
+            if not isPaused then
+                local chunk = audioResponse.read(16 * 1024)
+                
+                if not chunk then
+                    playerStatus:setText("Musica finalizada!")
+                    isPlaying = false
+                    progressBar:setProgress(100)
+                    progressText:setText("100%")
+                    break
+                end
+                
+                local buffer = decoder(chunk)
+                
+                while not speaker.playAudio(buffer) and isPlaying and not isPaused do
+                    os.pullEvent("speaker_audio_empty")
+                end
+                
+                progress = progress + 1
+                if progress % 5 == 0 then
+                    local newProgress = math.min(100, progressBar:getProgress() + 2)
+                    progressBar:setProgress(newProgress)
+                    progressText:setText(newProgress .. "%")
+                end
+            else
+                sleep(0.1)
+            end
+        end
+        
+        if audioResponse then
+            audioResponse.close()
+            audioResponse = nil
+        end
+        isPlaying = false
+    end)
+end
+
+-- ========== EVENTOS ==========
+
+searchButton:onClick(function()
+    local query = searchInput:getValue()
+    if query ~= "" then
+        searchYouTube(query)
+    end
+end)
+
+searchInput:onKey(function(self, event, key)
+    if key == keys.enter then
+        local query = searchInput:getValue()
+        if query ~= "" then
+            searchYouTube(query)
+        end
+    end
+end)
+
+resultsList:onSelect(function(self, event, item)
+    local index = self:getItemIndex()
+    if index > 0 and searchResults[index] then
+        playVideo(searchResults[index])
+    end
+end)
+
+pauseButton:onClick(function()
+    if not isPaused then
+        isPaused = true
+        pauseButton:setText("> CONTINUAR")
+        playerStatus:setText("Pausado")
+        pauseButton:setBackground(theme.light)
+    else
+        isPaused = false
+        pauseButton:setText("|| PAUSAR")
+        playerStatus:setText("Tocando agora...")
+        pauseButton:setBackground(theme.medium)
+    end
+end)
+
+stopButton:onClick(function()
+    isPlaying = false
+    isPaused = false
+    if audioResponse then
+        audioResponse.close()
+        audioResponse = nil
+    end
+    currentDecoder = nil
+    playerStatus:setText("Parado")
+    progressBar:setProgress(0)
+    progressText:setText("0%")
+end)
+
+backButton:onClick(function()
+    isPlaying = false
+    isPaused = false
+    if audioResponse then
+        audioResponse.close()
+        audioResponse = nil
+    end
+    currentDecoder = nil
+    playerFrame:hide()
+    searchFrame:show()
+    resultsList:clear()
+    resultsList:hide()
+    resultsLabel:hide()
+    searchInput:setValue("")
+    statusLabel:setText("")
+end)
+
+-- ========== VERIFICAÇÕES E INÍCIO ==========
+
+if not http then
+    local errorFrame = main:addFrame()
+        :setPosition(1, 1)
+        :setSize("parent.w", "parent.h")
+        :setBackground(theme.darkest)
+    
+    local errorBg = errorFrame:addFrame()
+        :setPosition("center - 15", "center - 3")
+        :setSize(30, 6)
+        :setBackground(theme.dark)
+    
+    errorFrame:addLabel()
+        :setText("ERRO: HTTP DESABILITADO")
+        :setPosition("center", "center - 1")
+        :setForeground(theme.accent)
+    
+    errorFrame:addLabel()
+        :setText("Habilite HTTP no config")
+        :setPosition("center", "center + 1")
+        :setForeground(theme.light)
+else
+    searchFrame:show()
+end
+
+basalt.autoUpdate()
