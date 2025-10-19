@@ -1,84 +1,142 @@
-local speaker = peripheral.find("speaker")
+--[[
+    YouTube Music Player (Basalt UI)
+    Autor: elf4iries 🧚
+    Correção: cria /basalt só se necessário e baixa automaticamente o Basalt
+    Tema: fada mágica com interface azul
+]]
 
-if not speaker then
-    error("Speaker nao encontrado!")
+-- Caminho da pasta Basalt
+local basaltPath = "/basalt"
+
+-- 🔹 Baixar automaticamente o Basalt se não existir
+if not fs.exists(basaltPath) then
+    print("Baixando Basalt...")
+    local basaltUrl = "https://basalt.madefor.cc/install.lua"
+    local basaltInstaller = http.get(basaltUrl)
+
+    if basaltInstaller then
+        local installCode = basaltInstaller.readAll()
+        basaltInstaller.close()
+        local file = fs.open("/basalt_install.lua", "w")
+        file.write(installCode)
+        file.close()
+        shell.run("/basalt_install.lua")
+        fs.delete("/basalt_install.lua")
+        print("Basalt instalado com sucesso!")
+    else
+        print("Erro: não foi possível baixar o Basalt.")
+        return
+    end
 end
 
-local function searchYouTube(query)
-    term.clear()
-    term.setCursorPos(1, 1)
-    print("=== YOUTUBE MUSIC SEARCH ===")
-    print()
-    print("Buscando: " .. query)
-    print()
+-- 🔹 Carregar Basalt com segurança
+local basalt = require("basalt")
+
+-- Cria a janela principal
+local main = basalt.createFrame()
+main:setBackground(colors.black)
+
+-- 🌙 Banner decorativo com fadinha ASCII
+local banner = {
+    "          ✨🧚✨",
+    "      ╔═☆═☆═☆═☆═☆═╗",
+    "        e l f 4 i r i e s",
+    "      ╚═☆═☆═☆═☆═☆═╝",
+    "          ✨🧚✨"
+}
+
+for i, line in ipairs(banner) do
+    local label = main:addLabel()
+    label:setText(line)
+    label:setPosition(6, i)
+    label:setForeground(colors.lightBlue)
+end
+
+-- Título
+local title = main:addLabel()
+title:setText("YOUTUBE MUSIC PLAYER")
+title:setPosition(9, 8)
+title:setForeground(colors.white)
+
+-- Label do input
+local inputLabel = main:addLabel()
+inputLabel:setText("Digite:")
+inputLabel:setPosition(3, 11)
+inputLabel:setForeground(colors.cyan)
+
+-- Campo de texto
+local input = main:addInput()
+input:setPosition(3, 12)
+input:setSize(40, 3)
+input:setBackground(colors.blue)
+input:setForeground(colors.white)
+
+-- Botão de busca
+local btn = main:addButton()
+btn:setText("BUSCAR")
+btn:setPosition(3, 16)
+btn:setSize(12, 3)
+btn:setBackground(colors.lightBlue)
+btn:setForeground(colors.black)
+
+-- Status
+local status = main:addLabel()
+status:setText("")
+status:setPosition(3, 20)
+status:setForeground(colors.lime)
+
+-- Lista de resultados
+local results = main:addList()
+results:setPosition(3, 22)
+results:setSize(40, 8)
+results:setBackground(colors.blue)
+results:setForeground(colors.white)
+results:setVisible(false)
+
+-- Função do botão
+btn:onClick(function()
+    local query = input:getValue()
+    if not query or query == "" then
+        status:setText("Digite algo!")
+        return
+    end
+    
+    status:setText("Buscando... ✨")
+    results:setVisible(false)
     
     local url = "https://music.madefor.cc/search?q=" .. textutils.urlEncode(query)
     local response = http.get(url, nil, true)
     
     if not response then
-        print("Erro ao conectar!")
+        status:setText("Erro ao conectar! 🧚")
         return
     end
     
     local data = response.readAll()
     response.close()
     
-    local results = textutils.unserialiseJSON(data)
+    local items = textutils.unserialiseJSON(data)
     
-    if not results or #results == 0 then
-        print("Nenhum resultado encontrado!")
+    if not items or #items == 0 then
+        status:setText("Sem resultados 💫")
         return
     end
     
-    print("Resultados:")
-    print()
+    status:setText("Encontrados: " .. #items .. " músicas 🎵")
+    results:clear()
     
-    for i = 1, math.min(10, #results) do
-        print(i .. ". " .. results[i].title)
-        print("   " .. results[i].channel)
-        print()
+    for i = 1, math.min(8, #items) do
+        results:addItem(items[i].title)
     end
     
-    print("Digite o numero para ver detalhes (0 = nova busca):")
-    local choice = tonumber(read())
-    
-    if choice and choice > 0 and choice <= #results then
-        local video = results[choice]
-        term.clear()
-        term.setCursorPos(1, 1)
-        print("=== VIDEO SELECIONADO ===")
-        print()
-        print("Titulo: " .. video.title)
-        print("Canal: " .. video.channel)
-        print("ID: " .. video.id)
-        print()
-        print("Pressione qualquer tecla para voltar...")
-        os.pullEvent("key")
-    end
-    
-    if choice == 0 then
-        return true
-    end
-end
+    results:setVisible(true)
+end)
 
-while true do
-    term.clear()
-    term.setCursorPos(1, 1)
-    print("=== YOUTUBE MUSIC PLAYER ===")
-    print()
-    print("Digite o nome da musica (Q para sair):")
-    write("> ")
-    
-    local query = read()
-    
-    if query:lower() == "q" then
-        term.clear()
-        term.setCursorPos(1, 1)
-        print("Ate logo!")
-        break
-    end
-    
-    if query ~= "" then
-        searchYouTube(query)
-    end
-end
+-- Quando o usuário seleciona algo na lista
+results:onSelect(function(self)
+    local idx = self:getItemIndex()
+    status:setText("✨ Selecionado item " .. idx .. " 🧚")
+end)
+
+-- Inicia a interface
+basalt.run()
