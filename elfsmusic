@@ -141,4 +141,4 @@ example:setPosition(2, 13)
 example:setForeground(colors.gray)
 
 -- Iniciar
-basalt.autoUpdate()
+basalt.run()
