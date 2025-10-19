@@ -148,7 +148,7 @@ local function searchYouTube(query)
     resultsList:setVisible(false)
     searchResults = {}
     
-    basalt.schedule(function()
+    local function doSearch()
         local url = SEARCH_API .. "?q=" .. textutils.urlEncode(query)
         local ok, response = pcall(http.get, url, nil, true)
         
@@ -184,6 +184,13 @@ local function searchYouTube(query)
         
         resultsList:setVisible(true)
         resultsLabel:setVisible(true)
+    end
+    
+    -- Executa em thread paralela
+    parallel.waitForAny(function()
+        doSearch()
+    end, function()
+        sleep(0.1)
     end)
 end
 
@@ -197,7 +204,7 @@ local function playVideo(video)
     updateProgressBar(0)
     isPaused = false
     
-    basalt.schedule(function()
+    local function doPlay()
         local url = CONVERTER_API .. "?id=" .. video.id
         local ok, response = pcall(http.get, url, nil, true)
         
@@ -232,9 +239,9 @@ local function playVideo(video)
                 
                 prog = prog + 1
                 if prog % 5 == 0 then
-                    local currentProg = tonumber(progressText:getText():match("%d+")) or 0
-                    local newProg = math.min(100, currentProg + 2)
-                    updateProgressBar(newProg)
+                    local p = tonumber(progressText:getText():match("%d+")) or 0
+                    local newP = math.min(100, p + 2)
+                    updateProgressBar(newP)
                 end
             else
                 sleep(0.1)
@@ -245,6 +252,13 @@ local function playVideo(video)
             audioResponse.close()
             audioResponse = nil
         end
+    end
+    
+    -- Executa em paralelo
+    parallel.waitForAny(function()
+        doPlay()
+    end, function()
+        sleep(0.1)
     end)
 end
 
