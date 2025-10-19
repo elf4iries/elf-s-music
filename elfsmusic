@@ -1,45 +1,102 @@
 --[[
     YouTube Music Player (Basalt UI)
-    Autor: elf4iries 🧚
-    Instalação automática: Basalt do Pyroxenium
+    Autor: elf4iries
+    Instalação automática: Basalt corrigida
     Tema: fada mágica com interface azul
 ]]
 
--- Caminho da pasta Basalt
-local basaltPath = "/basalt"
-
--- 🔹 Baixar automaticamente o Basalt se não existir
-if not fs.exists(basaltPath) then
-    print("Baixando Basalt...")
-    print("URL: https://raw.githubusercontent.com/Pyroxenium/Basalt2/main/install.lua")
-    
-    -- Baixar e executar o instalador
-    local success = shell.run("wget", "run", "https://raw.githubusercontent.com/Pyroxenium/Basalt2/main/install.lua")
-    
-    if not success then
-        print("Erro: não foi possível instalar o Basalt automaticamente.")
-        print("Tente instalar manualmente:")
-        print("wget run https://raw.githubusercontent.com/Pyroxenium/Basalt2/main/install.lua")
-        return
+-- Função para verificar se o Basalt está instalado corretamente
+local function isBasaltInstalled()
+    -- Verifica de várias formas se o Basalt está disponível
+    if fs.exists("/basalt") then
+        return true
+    end
+    if fs.exists("/basalt.lua") then
+        return true
+    end
+    if fs.exists("/rom/modules/main/basalt.lua") then
+        return true
     end
     
-    print("Basalt instalado com sucesso!")
+    -- Tenta carregar o Basalt para ver se funciona
+    local success, _ = pcall(require, "basalt")
+    return success
 end
 
--- 🔹 Carregar Basalt com segurança
-local basalt = require("basalt")
+-- Instalar Basalt automaticamente se não estiver instalado
+if not isBasaltInstalled() then
+    print("================================")
+    print(" Instalando Basalt...")
+    print("================================")
+    
+    -- Método 1: Tentar instalar do Pyroxenium
+    print("Tentando método 1: Pyroxenium/Basalt2...")
+    local success1 = shell.run("wget", "run", "https://raw.githubusercontent.com/Pyroxenium/Basalt2/main/install.lua")
+    
+    if not success1 or not isBasaltInstalled() then
+        -- Método 2: Tentar instalar do madefor.cc (oficial)
+        print("Metodo 1 falhou. Tentando metodo 2: madefor.cc...")
+        local success2 = shell.run("wget", "run", "https://basalt.madefor.cc/install.lua")
+        
+        if not success2 or not isBasaltInstalled() then
+            -- Método 3: Download manual do basalt.lua
+            print("Metodo 2 falhou. Tentando metodo 3: Download direto...")
+            local response = http.get("https://raw.githubusercontent.com/Pyroxenium/Basalt2/main/basalt.lua")
+            if response then
+                local basaltCode = response.readAll()
+                response.close()
+                local file = fs.open("basalt.lua", "w")
+                file.write(basaltCode)
+                file.close()
+                print("Download direto concluido!")
+            else
+                print("================================")
+                print("         ERRO NA INSTALACAO       ")
+                print("================================")
+                print(" Nao foi possivel instalar o")
+                print(" Basalt automaticamente.")
+                print("")
+                print(" Tente instalar manualmente:")
+                print("")
+                print(" wget run https://basalt.madefor.cc/install.lua")
+                print("")
+                print(" Ou:")
+                print(" wget run https://raw.githubusercontent.com/")
+                print("        Pyroxenium/Basalt2/main/install.lua")
+                print("================================")
+                return
+            end
+        end
+    end
+    
+    print("")
+    print(" Basalt instalado com sucesso! ")
+    print("")
+end
+
+-- Carregar Basalt com segurança
+local basalt
+local success, err = pcall(function()
+    basalt = require("basalt")
+end)
+
+if not success then
+    print("Erro ao carregar Basalt: " .. tostring(err))
+    print("Tente reiniciar o computador ou reinstalar o Basalt.")
+    return
+end
 
 -- Cria a janela principal
 local main = basalt.createFrame()
 main:setBackground(colors.black)
 
--- 🌙 Banner decorativo com fadinha ASCII
+-- Banner decorativo com fadinha ASCII
 local banner = {
-    "          ✨🧚✨",
-    "      ╔═☆═☆═☆═☆═☆═╗",
+    "          _",
+    "      .-'-.-'-.", 
     "        e l f 4 i r i e s",
-    "      ╚═☆═☆═☆═☆═☆═╝",
-    "          ✨🧚✨"
+    "      '-.-'-.-'-",
+    "          -"
 }
 
 for i, line in ipairs(banner) do
@@ -98,28 +155,28 @@ btn:onClick(function()
         return
     end
     
-    status:setText("Buscando... ✨")
+    status:setText("Buscando...")
     results:setVisible(false)
     
     local url = "https://music.madefor.cc/search?q=" .. textutils.urlEncode(query)
     local response = http.get(url, nil, true)
     
     if not response then
-        status:setText("Erro ao conectar! 🧚")
+        status:setText("Erro ao conectar!")
         return
     end
     
     local data = response.readAll()
     response.close()
     
-    local items = textutils.unserialiseJSON(data)
+    local success, items = pcall(textutils.unserialiseJSON, data)
     
-    if not items or #items == 0 then
-        status:setText("Sem resultados 💫")
+    if not success or not items or #items == 0 then
+        status:setText("Sem resultados")
         return
     end
     
-    status:setText("Encontrados: " .. #items .. " músicas 🎵")
+    status:setText("Encontrados: " .. #items .. " musicas")
     results:clear()
     
     for i = 1, math.min(8, #items) do
@@ -132,8 +189,8 @@ end)
 -- Quando o usuário seleciona algo na lista
 results:onSelect(function(self)
     local idx = self:getItemIndex()
-    status:setText("✨ Selecionado item " .. idx .. " 🧚")
+    status:setText("Selecionado item " .. idx)
 end)
 
 -- Inicia a interface
-basalt.run()
+basalt.lua()
