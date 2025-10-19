@@ -1,81 +1,268 @@
 --[[
-    YouTube Music Player para Advanced Pocket Noise
+    YouTube Music Player - Advanced Pocket Noise
+    Tema: Periwinkle
 ]]
 
 local basalt = require("basalt")
 
 local main = basalt.createFrame()
-main:setBackground(colors.black)
+main:setBackground(colors.lightBlue) -- Periwinkle background
 
--- Título
-local title = main:addLabel()
-title:setText("ADVANCED POCKET NOISE")
-title:setPosition(2, 2)
-title:setForeground(colors.white)
+-- Cores do tema
+local TEXT_COLOR = colors.white
+local BUTTON_COLOR = colors.blue -- Periwinkle blue mais escuro
+local BACKGROUND_COLOR = colors.lightBlue -- Periwinkle
+local ACCENT_COLOR = colors.cyan
 
--- Campo de URL
-local urlLabel = main:addLabel()
+-- Header com título
+local header = main:addFrame()
+header:setPosition(1, 1)
+header:setSize(51, 3)
+header:setBackground(BACKGROUND_COLOR)
+
+local title = header:addLabel()
+title:setText("ADVANCED POCKET NOISE PLAYER")
+title:setPosition(2, 1)
+title:setForeground(TEXT_COLOR)
+
+local subtitle = header:addLabel()
+subtitle:setText("YouTube Music Player")
+subtitle:setPosition(2, 2)
+subtitle:setForeground(colors.gray)
+
+-- Main content area
+local content = main:addFrame()
+content:setPosition(1, 4)
+content:setSize(51, 18)
+content:setBackground(BACKGROUND_COLOR)
+
+-- Seção de entrada de URL
+local urlSection = content:addFrame()
+urlSection:setPosition(2, 2)
+urlSection:setSize(47, 4)
+urlSection:setBackground(BACKGROUND_COLOR)
+
+local urlLabel = urlSection:addLabel()
 urlLabel:setText("YouTube URL:")
-urlLabel:setPosition(2, 4)
-urlLabel:setForeground(colors.cyan)
+urlLabel:setPosition(1, 1)
+urlLabel:setForeground(TEXT_COLOR)
 
-local urlInput = main:addInput()
-urlInput:setPosition(2, 5)
-urlInput:setSize(35, 1)
-urlInput:setBackground(colors.blue)
-urlInput:setForeground(colors.white)
+local urlInput = urlSection:addInput()
+urlInput:setPosition(1, 2)
+urlInput:setSize(45, 1)
+urlInput:setBackground(colors.white)
+urlInput:setForeground(colors.black)
+urlInput:setInput("")
 
--- Botões
-local playBtn = main:addButton()
-playBtn:setText("PLAY")
-playBtn:setPosition(2, 7)
-playBtn:setSize(8, 3)
-playBtn:setBackground(colors.green)
-playBtn:setForeground(colors.black)
+-- Controles principais
+local controls = content:addFrame()
+controls:setPosition(2, 7)
+controls:setSize(47, 4)
+controls:setBackground(BACKGROUND_COLOR)
 
-local stopBtn = main:addButton()
-stopBtn:setText("STOP")
-stopBtn:setPosition(12, 7)
-stopBtn:setSize(8, 3)
-stopBtn:setBackground(colors.red)
-stopBtn:setForeground(colors.black)
+local playBtn = controls:addButton()
+playBtn:setText("▶ PLAY")
+playBtn:setPosition(1, 1)
+playBtn:setSize(10, 3)
+playBtn:setBackground(BUTTON_COLOR)
+playBtn:setForeground(TEXT_COLOR)
 
--- Status
-local status = main:addLabel()
-status:setText("Ready")
-status:setPosition(2, 11)
+local stopBtn = controls:addButton()
+stopBtn:setText("■ STOP")
+stopBtn:setPosition(12, 1)
+stopBtn:setSize(10, 3)
+stopBtn:setBackground(BUTTON_COLOR)
+stopBtn:setForeground(TEXT_COLOR)
+
+local pauseBtn = controls:addButton()
+pauseBtn:setText("⏸ PAUSE")
+pauseBtn:setPosition(23, 1)
+pauseBtn:setSize(10, 3)
+pauseBtn:setBackground(BUTTON_COLOR)
+pauseBtn:setForeground(TEXT_COLOR)
+
+-- Status e informações
+local infoSection = content:addFrame()
+infoSection:setPosition(2, 12)
+infoSection:setSize(47, 4)
+infoSection:setBackground(BACKGROUND_COLOR)
+
+local statusLabel = infoSection:addLabel()
+statusLabel:setText("Status:")
+statusLabel:setPosition(1, 1)
+statusLabel:setForeground(TEXT_COLOR)
+
+local status = infoSection:addLabel()
+status:setText("Ready to play")
+status:setPosition(8, 1)
 status:setForeground(colors.lime)
 
--- Função corrigida para tocar música
-local function playMusic(url)
+local currentTrack = infoSection:addLabel()
+currentTrack:setText("Current: None")
+currentTrack:setPosition(1, 2)
+currentTrack:setForeground(TEXT_COLOR)
+
+-- Lista de músicas favoritas
+local favoritesFrame = content:addFrame()
+favoritesFrame:setPosition(2, 17)
+favoritesFrame:setSize(47, 8)
+favoritesFrame:setBackground(BACKGROUND_COLOR)
+
+local favLabel = favoritesFrame:addLabel()
+favLabel:setText("Favorite Tracks:")
+favLabel:setPosition(1, 1)
+favLabel:setForeground(TEXT_COLOR)
+
+local favorites = favoritesFrame:addList()
+favorites:setPosition(1, 2)
+favorites:setSize(45, 5)
+favorites:setBackground(colors.white)
+favorites:setForeground(colors.black)
+
+-- Adicionar algumas músicas de exemplo
+favorites:addItem("Rick Astley - Never Gonna Give You Up")
+favorites:addItem("Queen - Bohemian Rhapsody")
+favorites:addItem("Imagine Dragons - Believer")
+favorites:addItem("Coldplay - Viva La Vida")
+
+-- Volume controls
+local volumeFrame = main:addFrame()
+volumeFrame:setPosition(1, 23)
+volumeFrame:setSize(51, 3)
+volumeFrame:setBackground(BACKGROUND_COLOR)
+
+local volLabel = volumeFrame:addLabel()
+volLabel:setText("Volume:")
+volLabel:setPosition(2, 1)
+volLabel:setForeground(TEXT_COLOR)
+
+local volDown = volumeFrame:addButton()
+volDown:setText("−")
+volDown:setPosition(10, 1)
+volDown:setSize(3, 1)
+volDown:setBackground(BUTTON_COLOR)
+volDown:setForeground(TEXT_COLOR)
+
+local volLevel = volumeFrame:addLabel()
+volLevel:setText("■■■■■□□□□□")
+volLevel:setPosition(14, 1)
+volLevel:setForeground(colors.lime)
+
+local volUp = volumeFrame:addButton()
+volUp:setText("+")
+volUp:setPosition(24, 1)
+volUp:setSize(3, 1)
+volUp:setBackground(BUTTON_COLOR)
+volUp:setForeground(TEXT_COLOR)
+
+-- Footer
+local footer = main:addFrame()
+footer:setPosition(1, 27)
+footer:setSize(51, 3)
+footer:setBackground(BACKGROUND_COLOR)
+
+local footerText = footer:addLabel()
+footerText:setText("Advanced Pocket Noise - Press Ctrl+T to exit")
+footerText:setPosition(2, 1)
+footerText:setForeground(colors.gray)
+
+-- Variáveis de estado
+local isPlaying = false
+local currentVolume = 5 -- 0-10 scale
+
+-- Função para atualizar a barra de volume
+local function updateVolumeDisplay()
+    local bars = "■■■■■■■■■■"
+    local empty = "□□□□□□□□□□"
+    local level = math.floor(currentVolume)
+    volLevel:setText(string.sub(bars, 1, level) .. string.sub(empty, level + 1))
+end
+
+-- Função para tocar música
+local function playMusic(url, trackName)
     if not url or url == "" then
-        status:setText("Enter URL")
+        status:setText("Please enter a URL")
+        status:setForeground(colors.red)
         return false
     end
     
-    status:setText("Playing...")
+    if isPlaying then
+        stopMusic()
+        sleep(0.5)
+    end
     
-    -- Usa o programa noise do Advanced Pocket Computer
-    local result = shell.run("noise", url)
+    status:setText("Loading...")
+    status:setForeground(colors.yellow)
     
-    if result then
-        status:setText("Finished")
-        return true
+    if trackName then
+        currentTrack:setText("Current: " .. trackName)
     else
-        status:setText("Playback error")
-        return false
+        currentTrack:setText("Current: " .. url:sub(1, 30) .. "...")
     end
+    
+    isPlaying = true
+    
+    -- Executar em thread separada para não travar a interface
+    parallel.waitForAny(
+        function()
+            local success = pcall(function()
+                shell.run("noise", url)
+            end)
+            
+            isPlaying = false
+            if success then
+                status:setText("Finished")
+                status:setForeground(colors.lime)
+                currentTrack:setText("Current: None")
+            else
+                status:setText("Playback error")
+                status:setForeground(colors.red)
+            end
+        end,
+        function()
+            while isPlaying do
+                os.pullEvent("terminate")
+                break
+            end
+        end
+    )
+    
+    return true
 end
 
 -- Função para parar
 local function stopMusic()
-    shell.run("noise", "stop")
-    status:setText("Stopped")
+    if isPlaying then
+        isPlaying = false
+        os.queueEvent("terminate")
+        local success = pcall(function()
+            shell.run("noise", "stop")
+        end)
+        
+        status:setText("Stopped")
+        status:setForeground(colors.orange)
+        currentTrack:setText("Current: None")
+        return success
+    end
+    return false
 end
 
--- Eventos dos botões - CORRIGIDO
+-- Função para pausar (simulada)
+local function pauseMusic()
+    if isPlaying then
+        status:setText("Paused - Press Play to resume")
+        status:setForeground(colors.orange)
+        -- Nota: O comando noise pode não suportar pausa
+        -- Esta é uma implementação simulada
+    else
+        status:setText("Not playing")
+        status:setForeground(colors.red)
+    end
+end
+
+-- Event handlers
 playBtn:onClick(function()
-    local url = urlInput:getText()  -- Corrigido: getText() em vez de getValue()
+    local url = urlInput:getValue()
     playMusic(url)
 end)
 
@@ -83,15 +270,45 @@ stopBtn:onClick(function()
     stopMusic()
 end)
 
--- Instruções
-local help = main:addLabel()
-help:setText("Example: youtube.com/watch?v=...")
-help:setPosition(2, 13)
-help:setForeground(colors.gray)
+pauseBtn:onClick(function()
+    pauseMusic()
+end)
 
-local help2 = main:addLabel()
-help2:setText("or youtu.be/...")
-help2:setPosition(2, 14)
-help:setForeground(colors.gray)
+volUp:onClick(function()
+    if currentVolume < 10 then
+        currentVolume = currentVolume + 1
+        updateVolumeDisplay()
+        -- Aqui você adicionaria o controle de volume real se o noise suportar
+    end
+end)
 
-basalt.run()
+volDown:onClick(function()
+    if currentVolume > 0 then
+        currentVolume = currentVolume - 1
+        updateVolumeDisplay()
+        -- Aqui você adicionaria o controle de volume real se o noise suportar
+    end
+end)
+
+favorites:onSelect(function(self, event, item)
+    if event == "mouse_click" then
+        local selected = self:getItem(self:getItemIndex())
+        local urls = {
+            ["Rick Astley - Never Gonna Give You Up"] = "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+            ["Queen - Bohemian Rhapsody"] = "https://www.youtube.com/watch?v=fJ9rUzIMcZQ",
+            ["Imagine Dragons - Believer"] = "https://www.youtube.com/watch?v=7wtfhZwyrcc",
+            ["Coldplay - Viva La Vida"] = "https://www.youtube.com/watch?v=dvgZkm1xWPE"
+        }
+        
+        if urls[selected] then
+            urlInput:setValue(urls[selected])
+            playMusic(urls[selected], selected)
+        end
+    end
+end)
+
+-- Inicializar display de volume
+updateVolumeDisplay()
+
+-- Iniciar a interface
+basalt.autoUpdate()
