@@ -100,7 +100,6 @@ logLabel:setText("Log:")
 logLabel:setPosition(2, 16)
 logLabel:setForeground(TEXT_COLOR)
 
-local log = main:addTextfield()
 log:setPosition(2, 17)
 log:setSize(45, 5)
 log:setBackground(colors.black)
