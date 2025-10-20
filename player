@@ -1,0 +1,91 @@
+- Music Player para CC:Tweaked
+-- Por elf4iries
+
+-- URL da sua playlist
+local PLAYLIST_URL = "https://raw.githubusercontent.com/elf4iries/elf4iries/main/musicas/playlist.json"
+
+-- Baixa a playlist
+print("Carregando playlist...")
+local response = http.get(PLAYLIST_URL)
+
+if not response then
+    print("Erro: Nao foi possivel carregar a playlist!")
+    print("Verifique se o arquivo existe em:")
+    print(PLAYLIST_URL)
+    return
+end
+
+local playlistData = response.readAll()
+response.close()
+
+-- Decodifica o JSON
+local playlist = textutils.unserialiseJSON(playlistData)
+
+if not playlist then
+    print("Erro: Playlist invalida!")
+    return
+end
+
+print("Playlist carregada! " .. #playlist .. " musicas encontradas.")
+print("")
+
+-- Encontra um speaker
+local speaker = peripheral.find("speaker")
+
+if not speaker then
+    print("Erro: Nenhum speaker encontrado!")
+    print("Coloque um speaker ao lado do computador.")
+    return
+end
+
+print("Speaker encontrado!")
+print("Pressione Ctrl+T para parar")
+print("")
+
+-- Toca as músicas
+local currentSong = 1
+
+while true do
+    local songUrl = playlist[currentSong]
+    
+    -- Extrai o nome da música da URL
+    local songName = songUrl:match("([^/]+)%.f234%.dfpwm$") or "Desconhecida"
+    songName = songName:gsub("%%20", " "):gsub("%%28", "("):gsub("%%29", ")"):gsub("%%2C", ",")
+    
+    print("Tocando: " .. songName)
+    
+    -- Baixa a música
+    local audio = http.get(songUrl)
+    
+    if audio then
+        local decoder = require("cc.audio.dfpwm").make_decoder()
+        
+        -- Toca a música
+        while true do
+            local chunk = audio.read(16 * 1024)
+            if not chunk then break end
+            
+            local buffer = decoder(chunk)
+            
+            while not speaker.playAudio(buffer) do
+                os.pullEvent("speaker_audio_empty")
+            end
+        end
+        
+        audio.close()
+        print("Concluida!")
+    else
+        print("Erro ao carregar: " .. songName)
+    end
+    
+    -- Próxima música
+    currentSong = currentSong + 1
+    if currentSong > #playlist then
+        currentSong = 1
+        print("")
+        print("=== Reiniciando playlist ===")
+        print("")
+    end
+    
+    sleep(0.5)
+end
