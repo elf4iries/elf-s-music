@@ -1,20 +1,24 @@
 --[[
-    YouTube Music Player - Versão Corrigida e Testada
-    Baseado no Basalt 1.6.5 para CC:Tweaked
+    YouTube Music Player - Versão Estável
+    CC:Tweaked + Basalt
 ]]
 
 -- Verificação segura do Basalt
 local basalt
 if not fs.exists("/basalt") then
-    print("Basalt não encontrado. Instalando...")
-    shell.run("wget", "run", "https://raw.githubusercontent.com/Pyroxenium/Basalt/main/install.lua")
+    print("Instalando Basalt...")
+    local success = shell.run("wget", "run", "https://raw.githubusercontent.com/Pyroxenium/Basalt/main/install.lua")
+    if not success then
+        print("Erro: Não foi possível instalar o Basalt")
+        return
+    end
 end
 
-local success, err = pcall(function()
+-- Carregar Basalt
+local ok, err = pcall(function()
     basalt = require("basalt")
 end)
-
-if not success then
+if not ok then
     print("Erro ao carregar Basalt: " .. err)
     return
 end
@@ -26,7 +30,6 @@ main:setBackground(colors.lightBlue)
 -- Cores do tema
 local TEXT_COLOR = colors.white
 local BUTTON_COLOR = colors.blue
-local BACKGROUND_COLOR = colors.lightBlue
 
 -- Título
 local title = main:addLabel()
@@ -40,14 +43,16 @@ subtitle:setPosition(2, 3)
 subtitle:setForeground(colors.gray)
 
 -- Linha separadora
-local line = main:addLabel()
-line:setText(string.rep("─", 48))
-line:setPosition(1, 4)
-line:setForeground(colors.blue)
+local line = ""
+for i = 1, 48 do line = line .. "─" end
+local sep = main:addLabel()
+sep:setText(line)
+sep:setPosition(1, 4)
+sep:setForeground(colors.blue)
 
 -- Campo de URL
 local urlLabel = main:addLabel()
-urlLabel:setText("Cole o link do YouTube:")
+urlLabel:setText("YouTube URL:")
 urlLabel:setPosition(2, 6)
 urlLabel:setForeground(TEXT_COLOR)
 
@@ -94,35 +99,45 @@ info:setText("Aguardando URL...")
 info:setPosition(8, 14)
 info:setForeground(colors.yellow)
 
--- Área de log
+-- Área de log (usando List em vez de Textfield)
 local logLabel = main:addLabel()
 logLabel:setText("Log:")
 logLabel:setPosition(2, 16)
 logLabel:setForeground(TEXT_COLOR)
 
-log:setPosition(2, 17)
-log:setSize(45, 5)
-log:setBackground(colors.black)
-log:setForeground(colors.white)
-log:setValue("Bem-vindo ao YouTube Music Player!\n")
+local logList = main:addList()
+logList:setPosition(2, 17)
+logList:setSize(45, 5)
+logList:setBackground(colors.black)
+logList:setForeground(colors.white)
+
+-- Função para adicionar texto ao log
+local function addLog(message)
+    logList:addItem(message)
+    -- Manter apenas as últimas 10 mensagens
+    while logList:getItemCount() > 10 do
+        logList:removeItem(1)
+    end
+end
 
 -- Instalar o programa music se necessário
 local function installMusic()
     if not fs.exists("music") then
-        log:addText("Instalando music player...\n")
+        addLog("Instalando music player...")
         local success = shell.run("wget", "https://music.madefor.cc/music.lua", "music")
         if success then
-            log:addText("Music player instalado com sucesso!\n")
+            addLog("Music player instalado!")
             return true
         else
-            log:addText("Erro na instalação do music player\n")
+            addLog("Erro na instalação")
             return false
         end
     end
     return true
 end
 
--- Verificar instalação na inicialização
+-- Verificar instalação
+addLog("Iniciando player...")
 if not installMusic() then
     status:setText("Erro instalação")
     status:setForeground(colors.red)
@@ -137,7 +152,6 @@ local function isValidYouTubeURL(url)
         return false, "URL vazia"
     end
     
-    -- Padrões de URLs do YouTube
     if url:find("youtube.com/watch") or url:find("youtu.be/") then
         return true
     end
@@ -152,24 +166,24 @@ local function playMusic(url)
         status:setText("URL inválida")
         status:setForeground(colors.red)
         info:setText(errorMsg)
-        log:addText("Erro: " .. errorMsg .. "\n")
+        addLog("Erro: " .. errorMsg)
         return false
     end
     
     if isPlaying then
         status:setText("Já tocando")
-        info:setText("Aguarde a reprodução atual terminar")
+        info:setText("Aguarde...")
         return false
     end
     
     status:setText("Convertendo...")
     status:setForeground(colors.yellow)
-    info:setText("Processando: " .. url:sub(1, 30) .. "...")
-    log:addText("Iniciando conversão: " .. url .. "\n")
+    info:setText("Processando...")
+    addLog("Iniciando: " .. url:sub(1, 30))
     
     isPlaying = true
     
-    -- Executar em thread separada para não travar a interface
+    -- Executar em thread separada
     parallel.waitForAny(
         function()
             local success, result = pcall(function()
@@ -182,16 +196,15 @@ local function playMusic(url)
                 status:setText("Concluído")
                 status:setForeground(colors.lime)
                 info:setText("Reprodução finalizada")
-                log:addText("Reprodução concluída com sucesso\n")
+                addLog("Reprodução concluída")
             else
                 status:setText("Erro")
                 status:setForeground(colors.red)
                 info:setText("Falha na reprodução")
-                log:addText("Erro na reprodução\n")
+                addLog("Erro na reprodução")
             end
         end,
         function()
-            -- Thread de monitoramento para permitir parada
             while isPlaying do
                 local event = os.pullEvent()
                 if event == "stop_playback" then
@@ -204,26 +217,23 @@ local function playMusic(url)
     return true
 end
 
--- Função para parar reprodução
+-- Função para parar
 local function stopMusic()
     if isPlaying then
         isPlaying = false
         os.queueEvent("stop_playback")
         
-        local success = pcall(function()
+        pcall(function()
             shell.run("music", "stop")
         end)
         
         status:setText("Parado")
         status:setForeground(colors.orange)
         info:setText("Reprodução interrompida")
-        log:addText("Reprodução parada pelo usuário\n")
-        
-        return success
+        addLog("Parado pelo usuário")
     else
         status:setText("Não tocando")
-        info:setText("Nenhuma reprodução em andamento")
-        return false
+        info:setText("Nenhuma reprodução")
     end
 end
 
@@ -255,12 +265,16 @@ example2:setForeground(colors.gray)
 
 -- Footer
 local footer = main:addLabel()
-footer:setText("Pressione Ctrl+T para sair")
+footer:setText("Ctrl+T para sair")
 footer:setPosition(2, 27)
 footer:setForeground(colors.gray)
 
 -- Foco no input
 urlInput:setFocus()
 
--- Iniciar a interface
+-- Mensagem inicial
+addLog("Sistema pronto!")
+addLog("Cole uma URL do YouTube")
+
+-- Iniciar interface
 basalt.run()
