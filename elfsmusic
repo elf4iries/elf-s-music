@@ -3,17 +3,6 @@
     CC:Tweaked + Basalt
 ]]
 
--- Verificação segura do Basalt
-local basalt
-if not fs.exists("/basalt") then
-    print("Instalando Basalt...")
-    local success = shell.run("wget", "run", "https://raw.githubusercontent.com/Pyroxenium/Basalt/main/install.lua")
-    if not success then
-        print("Erro: Não foi possível instalar o Basalt")
-        return
-    end
-end
-
 -- Carregar Basalt
 local ok, err = pcall(function()
     basalt = require("basalt")
