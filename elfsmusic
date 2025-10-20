@@ -3,15 +3,6 @@
     CC:Tweaked + Basalt
 ]]
 
--- Carregar Basalt
-local ok, err = pcall(function()
-    basalt = require("basalt")
-end)
-if not ok then
-    print("Erro ao carregar Basalt: " .. err)
-    return
-end
-
 -- Criar a janela principal
 local main = basalt.createFrame()
 main:setBackground(colors.lightBlue)
