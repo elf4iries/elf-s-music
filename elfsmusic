@@ -111,15 +111,6 @@ logList:setSize(45, 5)
 logList:setBackground(colors.black)
 logList:setForeground(colors.white)
 
--- Função para adicionar texto ao log
-local function addLog(message)
-    logList:addItem(message)
-    -- Manter apenas as últimas 10 mensagens
-    while logList:getItemCount() > 10 do
-        logList:removeItem(1)
-    end
-end
-
 -- Instalar o programa music se necessário
 local function installMusic()
     if not fs.exists("music") then
